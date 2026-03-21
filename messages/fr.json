@@ -1,0 +1,71 @@
+{
+  "app": {
+    "name": "Wibya",
+    "tagline": "Achetez et vendez en toute confiance"
+  },
+  "nav": {
+    "home": "Accueil",
+    "search": "Recherche",
+    "add": "Ajouter",
+    "orders": "Commandes",
+    "profile": "Profil"
+  },
+  "feed": {
+    "forYou": "Pour vous",
+    "new": "Nouveau",
+    "nearby": "Près de vous",
+    "trending": "Tendance"
+  },
+  "product": {
+    "buy": "Acheter maintenant",
+    "contact": "Contacter le vendeur",
+    "share": "Partager",
+    "save": "Sauvegarder",
+    "report": "Signaler",
+    "condition": {
+      "new": "Neuf",
+      "used": "Occasion",
+      "refurbished": "Reconditionné"
+    },
+    "delivery": "Paiement à la livraison",
+    "protection": "Protection Wibya · Vérification sous 24h"
+  },
+  "ad": {
+    "sponsored": "Sponsorisé",
+    "contact": "Contacter"
+  },
+  "auth": {
+    "login": "Se connecter",
+    "register": "Créer un compte",
+    "logout": "Se déconnecter",
+    "email": "Email",
+    "password": "Mot de passe",
+    "name": "Nom complet"
+  },
+  "seller": {
+    "dashboard": "Tableau de bord",
+    "products": "Produits",
+    "orders": "Commandes",
+    "earnings": "Gains",
+    "add_product": "Ajouter un produit"
+  },
+  "city": {
+    "casablanca": "Casablanca",
+    "rabat": "Rabat",
+    "fes": "Fès",
+    "marrakech": "Marrakech",
+    "agadir": "Agadir",
+    "tanger": "Tanger"
+  },
+  "common": {
+    "loading": "Chargement...",
+    "error": "Une erreur est survenue",
+    "retry": "Réessayer",
+    "save": "Enregistrer",
+    "cancel": "Annuler",
+    "delete": "Supprimer",
+    "edit": "Modifier",
+    "confirm": "Confirmer",
+    "dh": "DH"
+  }
+}
