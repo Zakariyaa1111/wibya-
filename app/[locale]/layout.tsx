@@ -1,4 +1,4 @@
-import "../globals.css";
+import "@/app//[locale]/globals.css";
 import { NextIntlClientProvider } from 'next-intl'
 import { getMessages } from 'next-intl/server'
 import { notFound } from 'next/navigation'
