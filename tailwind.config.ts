@@ -5,6 +5,7 @@ const config: Config = {
     './app/**/*.{ts,tsx}',
     './components/**/*.{ts,tsx}',
     './lib/**/*.{ts,tsx}',
+    './src/**/*.{ts,tsx}',
   ],
   theme: {
     extend: {
@@ -78,6 +79,19 @@ const config: Config = {
     },
   },
   plugins: [require('@tailwindcss/typography')],
+  safelist: [
+    // ✅ زيد هذا باش Tailwind يحتفظ بالـ classes ديال globals.css
+    'bottom-nav',
+    'nav-item',
+    'feed-card',
+    'top-bar',
+    'btn',
+    'btn-primary',
+    'btn-brand',
+    'input',
+    'skeleton',
+    'badge',
+  ],
 }
 
 export default config

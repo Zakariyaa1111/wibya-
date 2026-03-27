@@ -1,15 +1,1 @@
-{
-  "/_not-found/page": "app/_not-found/page.js",
-  "/api/ai/chat/route": "app/api/ai/chat/route.js",
-  "/api/ai/moderate/route": "app/api/ai/moderate/route.js",
-  "/api/ai/search/route": "app/api/ai/search/route.js",
-  "/[locale]/auth/login/page": "app/[locale]/auth/login/page.js",
-  "/[locale]/orders/page": "app/[locale]/orders/page.js",
-  "/[locale]/search/page": "app/[locale]/search/page.js",
-  "/[locale]/page": "app/[locale]/page.js",
-  "/[locale]/product/[id]/page": "app/[locale]/product/[id]/page.js",
-  "/[locale]/auth/register/page": "app/[locale]/auth/register/page.js",
-  "/[locale]/seller/products/new/page": "app/[locale]/seller/products/new/page.js",
-  "/[locale]/profile/page": "app/[locale]/profile/page.js",
-  "/[locale]/seller/dashboard/page": "app/[locale]/seller/dashboard/page.js"
-}
+{}
