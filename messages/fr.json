@@ -28,7 +28,10 @@
       "refurbished": "Reconditionné"
     },
     "delivery": "Paiement à la livraison",
-    "protection": "Protection Wibya · Vérification sous 24h"
+    "protection": "Protection Wibya · Vérification sous 24h",
+    "common": {
+      "dh": "DH"
+    }
   },
   "ad": {
     "sponsored": "Sponsorisé",

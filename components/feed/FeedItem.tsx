@@ -1,8 +1,8 @@
 'use client'
 import { useState } from 'react'
 import Image from 'next/image'
-import { Heart, MessageCircle, Share2, MapPin, ShieldCheck } from 'lucide-react'
-import { useTranslations, useLocale } from 'next-intl'
+import { Heart, MessageCircle, Share2, MapPin, ShieldCheck, Flag } from 'lucide-react'
+import { useLocale } from 'next-intl'
 import { Link } from '@/lib/i18n/navigation'
 import type { Database } from '@/lib/supabase/types'
 
@@ -20,10 +20,10 @@ interface FeedItemProps {
 }
 
 export function FeedItem({ product, index = 0 }: FeedItemProps) {
-  const t = useTranslations('product')
   const locale = useLocale()
   const [liked, setLiked] = useState(false)
   const [likeCount, setLikeCount] = useState(0)
+  const [reported, setReported] = useState(false)
 
   const mainImage = product.images?.[0] ?? '/placeholder.jpg'
   const discount = product.original_price
@@ -34,6 +34,26 @@ export function FeedItem({ product, index = 0 }: FeedItemProps) {
     e.preventDefault()
     setLiked(prev => !prev)
     setLikeCount(prev => liked ? prev - 1 : prev + 1)
+  }
+
+  const handleComment = (e: React.MouseEvent) => {
+    e.preventDefault()
+  }
+
+  const handleShare = (e: React.MouseEvent) => {
+    e.preventDefault()
+    if (navigator.share) {
+      navigator.share({
+        title: product.name,
+        url: `/${locale}/product/${product.id}`,
+      })
+    }
+  }
+
+  const handleReport = (e: React.MouseEvent) => {
+    e.preventDefault()
+    if (reported) return
+    setReported(true)
   }
 
   return (
@@ -75,7 +95,7 @@ export function FeedItem({ product, index = 0 }: FeedItemProps) {
                     {product.price.toLocaleString()}
                   </span>
                   <span className="text-white/80 text-sm font-medium">
-                    {t('common.dh', { ns: 'common' }) || 'د.م.'}
+                    {'د.م.'}
                   </span>
                 </div>
                 {product.city && (
@@ -96,21 +116,20 @@ export function FeedItem({ product, index = 0 }: FeedItemProps) {
 
         {/* Card body */}
         <div className="p-3">
-          {/* Product name */}
           <h3 className="font-semibold text-neutral-900 text-sm line-clamp-2 leading-snug mb-2">
             {product.name}
           </h3>
 
-          {/* Protection badge */}
           <div className="flex items-center gap-1.5 text-[11px] text-neutral-400 mb-3">
             <ShieldCheck size={12} className="text-green-500 shrink-0" />
-            <span>{t('protection')}</span>
+            <span>{'حماية Wibya'}</span>
           </div>
 
           {/* Actions */}
           <div className="flex items-center justify-between border-t border-neutral-50 pt-2.5">
             <div className="flex items-center gap-3">
-              {/* Like */}
+
+              {/* إعجاب */}
               <button
                 onClick={handleLike}
                 className="flex items-center gap-1 text-neutral-400 hover:text-red-500 transition-colors"
@@ -125,15 +144,39 @@ export function FeedItem({ product, index = 0 }: FeedItemProps) {
                 )}
               </button>
 
-              {/* Message */}
-              <button className="flex items-center gap-1 text-neutral-400 hover:text-neutral-700 transition-colors">
+              {/* تعليق */}
+              <button
+                onClick={handleComment}
+                className="flex items-center gap-1 text-neutral-400 hover:text-neutral-700 transition-colors"
+              >
                 <MessageCircle size={18} strokeWidth={1.8} />
               </button>
 
-              {/* Share */}
-              <button className="flex items-center gap-1 text-neutral-400 hover:text-neutral-700 transition-colors">
+              {/* مشاركة */}
+              <button
+                onClick={handleShare}
+                className="flex items-center gap-1 text-neutral-400 hover:text-neutral-700 transition-colors"
+              >
                 <Share2 size={18} strokeWidth={1.8} />
               </button>
+
+              {/* إبلاغ */}
+              <button
+                onClick={handleReport}
+                className={`flex items-center gap-1 transition-colors ${
+                  reported
+                    ? 'text-red-400 cursor-not-allowed'
+                    : 'text-neutral-400 hover:text-red-500'
+                }`}
+                title={reported ? 'تم الإبلاغ' : 'إبلاغ'}
+              >
+                <Flag
+                  size={16}
+                  strokeWidth={1.8}
+                  className={reported ? 'fill-red-400 text-red-400' : ''}
+                />
+              </button>
+
             </div>
 
             {/* Seller */}

@@ -1,38 +1,25 @@
+import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
-import { AdminDashboard } from '@/components/admin/AdminDashboard'
 
 export default async function AdminPage() {
   const supabase = await createClient()
-  const [
-    { count: usersCount },
-    { count: productsCount },
-    { count: ordersCount },
-    { count: pendingCount },
-    { count: flagsCount },
-    { data: pendingProducts },
-    { data: recentOrders },
-    { data: flags },
-    { data: pendingSellers },
-  ] = await Promise.all([
-    supabase.from('profiles').select('*', { count: 'exact', head: true }),
-    supabase.from('products').select('*', { count: 'exact', head: true }).eq('status', 'active'),
-    supabase.from('orders').select('*', { count: 'exact', head: true }),
-    supabase.from('products').select('*', { count: 'exact', head: true }).eq('status', 'pending'),
-    supabase.from('moderation_flags').select('*', { count: 'exact', head: true }).eq('resolved', false),
-    supabase.from('products').select('id,name,price,seller_id,created_at,profiles(store_name)')
-      .eq('status', 'pending').order('created_at', { ascending: false }).limit(10),
-    supabase.from('orders').select('id,total,status,created_at').order('created_at', { ascending: false }).limit(10),
-    supabase.from('moderation_flags').select('*,products(name)').eq('resolved', false).limit(10),
-    supabase.from('profiles').select('*').eq('role', 'seller').eq('approved', false).limit(10),
-  ] as any[])
+  
+  const { data: { user } } = await supabase.auth.getUser()
+  
+  if (!user) redirect('/ar/auth/login')
+
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('role')
+    .eq('id', user.id)
+    .single()
+
+  if (profile?.role !== 'admin') redirect('/ar')
 
   return (
-    <AdminDashboard
-      stats={{ usersCount, productsCount, ordersCount, pendingCount, flagsCount }}
-      pendingProducts={(pendingProducts as any[]) ?? []}
-      recentOrders={(recentOrders as any[]) ?? []}
-      flags={(flags as any[]) ?? []}
-      pendingSellers={(pendingSellers as any[]) ?? []}
-    />
+    <div className="p-8">
+      <h1 className="text-2xl font-bold">لوحة الأدمن ✅</h1>
+      <p className="text-neutral-500 mt-2">مرحباً {user.email}</p>
+    </div>
   )
 }

@@ -28,7 +28,10 @@
       "refurbished": "مُجدَّد"
     },
     "delivery": "الدفع عند الاستلام",
-    "protection": "حماية Wibya · فحص خلال 24 ساعة"
+    "protection": "حماية Wibya · فحص خلال 24 ساعة",
+    "common": {
+      "dh": "د.م."
+    }
   },
   "ad": {
     "sponsored": "إعلان",

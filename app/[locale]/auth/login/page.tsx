@@ -1,32 +1,47 @@
 'use client'
-import { useState } from 'react'
+import { useState, Suspense } from 'react'
 import { useTranslations } from 'next-intl'
 import { Link, useRouter } from '@/lib/i18n/navigation'
+import { useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { Eye, EyeOff, ArrowRight } from 'lucide-react'
 import toast from 'react-hot-toast'
 
-export default function LoginPage() {
+function LoginForm() {
   const t = useTranslations('auth')
   const router = useRouter()
+  const searchParams = useSearchParams()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [showPass, setShowPass] = useState(false)
   const [loading, setLoading] = useState(false)
 
   async function handleLogin(e: React.FormEvent) {
-    e.preventDefault()
-    setLoading(true)
-    const supabase = createClient()
-    const { error } = await supabase.auth.signInWithPassword({ email, password })
-    if (error) {
-      toast.error(error.message)
+  e.preventDefault()
+  setLoading(true)
+  const supabase = createClient()
+  const { error } = await supabase.auth.signInWithPassword({ email, password })
+  if (error) {
+    toast.error(error.message)
+  } else {
+    // تحقق من الـ role وروح للصفحة الصحيحة
+    const { data: { user } } = await supabase.auth.getUser()
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('role')
+      .eq('id', user!.id)
+      .single()
+
+    if (profile?.role === 'admin') {
+      window.location.href = '/ar/admin'
+    } else if (profile?.role === 'seller') {
+      window.location.href = '/ar/seller'
     } else {
-      router.push('/')
-      router.refresh()
+      window.location.href = '/ar'
     }
-    setLoading(false)
   }
+  setLoading(false)
+}
 
   return (
     <div className="min-h-screen flex flex-col bg-white">
@@ -101,5 +116,13 @@ export default function LoginPage() {
         </p>
       </div>
     </div>
+  )
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense>
+      <LoginForm />
+    </Suspense>
   )
 }
