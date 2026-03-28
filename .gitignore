@@ -7,3 +7,9 @@ node_modules/
 .DS_Store
 apps/web/test-output.css
 "@ | Out-File -FilePath .gitignore -Encoding utf8
+
+node_modules/
+
+.next/
+
+test-output.css
