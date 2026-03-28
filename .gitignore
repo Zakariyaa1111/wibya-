@@ -1,0 +1,9 @@
+﻿@"
+node_modules/
+.next/
+.env
+.env.local
+*.log
+.DS_Store
+apps/web/test-output.css
+"@ | Out-File -FilePath .gitignore -Encoding utf8
