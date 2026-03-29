@@ -4,7 +4,7 @@ import { createClient } from '@/lib/supabase/server'
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
-  if (!user) redirect('/auth/login')
+  if (!user) redirect('/ar/auth/login')
 
   const { data: profile } = await supabase
     .from('profiles')
@@ -12,6 +12,6 @@ export default async function AdminLayout({ children }: { children: React.ReactN
     .eq('id', user.id)
     .single() as any
 
-  if ((profile as any)?.role !== 'admin') redirect('/')
+ if ((profile as any)?.role !== 'admin') redirect('/ar')
   return <>{children}</>
 }
