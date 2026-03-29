@@ -63,7 +63,7 @@ export default function AddProductPage() {
       quantity: parseInt(qty),
       category, condition, city,
       images,
-      status: modRes.safe ? 'pending' : 'rejected',
+      status: 'pending',
     })
     if (error) { toast.error('حدث خطأ'); setSaving(false); return }
     toast.success(modRes.safe ? '✅ تم إضافة المنتج للمراجعة' : '⚠️ تم رفض المنتج لمخالفة الشروط')

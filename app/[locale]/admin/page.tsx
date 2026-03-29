@@ -61,7 +61,7 @@ export default function AdminPage() {
         supabase.from('ads').select('*', { count: 'exact', head: true }).eq('status', 'active'),
         supabase.from('products').select('*, profiles(store_name)').eq('status', 'pending').order('created_at', { ascending: false }).limit(10),
         supabase.from('orders').select('*').order('created_at', { ascending: false }).limit(10),
-        supabase.from('product_reports').select('*, products(name), profiles(full_name)').eq('resolved', false).order('created_at', { ascending: false }).limit(20),
+        supabase.from('product_reports').select('*, products(name, price, seller_id)').eq('resolved', false).order('created_at', { ascending: false }).limit(20),
         supabase.from('profiles').select('*').eq('role', 'seller').order('created_at', { ascending: false }).limit(20),
         supabase.from('ads').select('*, profiles(full_name, store_name)').order('created_at', { ascending: false }).limit(20),
       ])
