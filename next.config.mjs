@@ -1,11 +1,18 @@
 import createNextIntlPlugin from 'next-intl/plugin';
 
-// نحن هنا نخبر النظام أن الملف موجود داخل مجلد src الذي أنشأته
 const withNextIntl = createNextIntlPlugin('./src/i18n.ts');
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  // يمكنك إضافة إعدادات أخرى هنا لاحقاً
+  images: {
+    remotePatterns: [
+      {
+        protocol: 'https',
+        hostname: 'hkwwosjwnbdubwqkuxxm.supabase.co',
+        pathname: '/storage/v1/object/public/**',
+      },
+    ],
+  },
 };
 
 export default withNextIntl(nextConfig);
