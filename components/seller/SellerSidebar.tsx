@@ -1,7 +1,7 @@
 'use client'
 import { useState } from 'react'
-import { usePathname } from 'next/navigation'
-import Link from 'next/link'
+
+import { Link, usePathname, useRouter } from '@/lib/i18n/navigation'
 import Image from 'next/image'
 import {
   LayoutDashboard, Package, ShoppingBag, MessageCircle,
@@ -9,7 +9,7 @@ import {
   PlusCircle, Bell, ChevronRight, Star
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
-import { useRouter } from 'next/navigation'
+
 
 interface Profile {
   full_name: string | null
