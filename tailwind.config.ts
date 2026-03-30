@@ -1,12 +1,12 @@
 import type { Config } from 'tailwindcss'
 
 const config: Config = {
+  darkMode: 'class',
   content: [
-    './app/**/*.{ts,tsx}',
-    './components/**/*.{ts,tsx}',
-    './lib/**/*.{ts,tsx}',
-    './src/**/*.{ts,tsx}',
-    './app/globals.css',
+    './app/**/*.{js,ts,jsx,tsx,mdx}',
+    './components/**/*.{js,ts,jsx,tsx,mdx}',
+    './lib/**/*.{js,ts,jsx,tsx,mdx}',
+    './src/**/*.{js,ts,jsx,tsx,mdx}',
   ],
   theme: {
     extend: {
@@ -80,19 +80,6 @@ const config: Config = {
     },
   },
   plugins: [require('@tailwindcss/typography')],
-  safelist: [
-    // ✅ زيد هذا باش Tailwind يحتفظ بالـ classes ديال globals.css
-    'bottom-nav',
-    'nav-item',
-    'feed-card',
-    'top-bar',
-    'btn',
-    'btn-primary',
-    'btn-brand',
-    'input',
-    'skeleton',
-    'badge',
-  ],
 }
 
 export default config

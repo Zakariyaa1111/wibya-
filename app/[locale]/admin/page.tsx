@@ -5,7 +5,7 @@ import { useRouter } from '@/lib/i18n/navigation'
 import {
   Users, Package, ShoppingBag, Clock, AlertTriangle, CheckCircle,
   XCircle, Shield, BarChart2, Flag, Store, LogOut, Star, Megaphone,
-  Percent, BadgeCheck
+  Percent, BadgeCheck, ExternalLink
 } from 'lucide-react'
 import toast from 'react-hot-toast'
 
@@ -36,7 +36,6 @@ export default function AdminPage() {
       const supabase = createClient()
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) { router.push('/ar/auth/login'); return }
-
       const { data: profile } = await supabase.from('profiles').select('role').eq('id', user.id).single()
       if (profile?.role !== 'admin') { router.push('/ar'); return }
 
@@ -59,11 +58,12 @@ export default function AdminPage() {
         supabase.from('products').select('*', { count: 'exact', head: true }).eq('status', 'pending'),
         supabase.from('product_reports').select('*', { count: 'exact', head: true }).eq('resolved', false),
         supabase.from('ads').select('*', { count: 'exact', head: true }).eq('status', 'active'),
-        supabase.from('products').select('*, profiles(store_name)').eq('status', 'pending').order('created_at', { ascending: false }).limit(10),
+        supabase.from('products').select('id, name, price, category, created_at, profiles(store_name)').eq('status', 'pending').order('created_at', { ascending: false }).limit(10),
         supabase.from('orders').select('*').order('created_at', { ascending: false }).limit(10),
-        supabase.from('product_reports').select('*, products(name, price, seller_id)').eq('resolved', false).order('created_at', { ascending: false }).limit(20),
-        supabase.from('profiles').select('*').eq('role', 'seller').order('created_at', { ascending: false }).limit(20),
-        supabase.from('ads').select('*, profiles(full_name, store_name)').order('created_at', { ascending: false }).limit(20),
+        // ✅ بدون join على reporter لأنه ممكن يكون null
+        supabase.from('product_reports').select('id, reason, details, status, created_at, product_id, products(id, name, price)').eq('resolved', false).order('created_at', { ascending: false }).limit(30),
+        supabase.from('profiles').select('id, full_name, store_name, email, city, verified, is_premium, commission_rate').eq('role', 'seller').order('created_at', { ascending: false }).limit(30),
+        supabase.from('ads').select('id, title, headline, status, views_count, is_vip, profiles(full_name, store_name)').order('created_at', { ascending: false }).limit(20),
       ])
 
       setStats({ usersCount: usersCount ?? 0, productsCount: productsCount ?? 0, ordersCount: ordersCount ?? 0, pendingCount: pendingCount ?? 0, flagsCount: flagsCount ?? 0, adsCount: adsCount ?? 0 })
@@ -79,8 +79,9 @@ export default function AdminPage() {
 
   async function approveProduct(id: string) {
     const supabase = createClient()
-    await supabase.from('products').update({ status: 'active' }).eq('id', id)
-    toast.success('تم قبول المنتج')
+    const { error } = await supabase.from('products').update({ status: 'active' }).eq('id', id)
+    if (error) { toast.error('خطأ: ' + error.message); return }
+    toast.success('تم قبول المنتج ✅')
     setPendingProducts(prev => prev.filter(p => p.id !== id))
     setStats(prev => ({ ...prev, pendingCount: prev.pendingCount - 1, productsCount: prev.productsCount + 1 }))
   }
@@ -117,8 +118,9 @@ export default function AdminPage() {
 
   async function resolveFlag(id: string) {
     const supabase = createClient()
-    await supabase.from('product_reports').update({ resolved: true }).eq('id', id)
-    toast.success('تم معالجة البلاغ')
+    const { error } = await supabase.from('product_reports').update({ resolved: true }).eq('id', id)
+    if (error) { toast.error('خطأ: ' + error.message); return }
+    toast.success('تم معالجة البلاغ ✅')
     setFlags(prev => prev.filter(f => f.id !== id))
     setStats(prev => ({ ...prev, flagsCount: prev.flagsCount - 1 }))
   }
@@ -131,14 +133,25 @@ export default function AdminPage() {
     setAds(prev => prev.map(a => a.id === id ? { ...a, status: newStatus } : a))
   }
 
+  const reasonLabel: Record<string, string> = {
+    misleading: 'إعلان مضلل', inappropriate: 'محتوى غير لائق',
+    spam: 'بريد مزعج', other: 'سبب آخر', 'محتوى غير لائق': 'محتوى غير لائق',
+  }
+
   if (loading) return (
-    <div className="min-h-screen flex items-center justify-center bg-neutral-50">
+    <div className="min-h-screen flex items-center justify-center bg-neutral-50 dark:bg-neutral-950">
       <div className="w-6 h-6 border-2 border-neutral-200 border-t-neutral-900 rounded-full animate-spin" />
     </div>
   )
 
+  const cardCls = "bg-white dark:bg-neutral-900 rounded-2xl border border-neutral-100 dark:border-neutral-800"
+  const rowCls = "border-b border-neutral-50 dark:border-neutral-800 last:border-0"
+  const titleCls = "text-xl font-bold text-neutral-900 dark:text-white"
+  const textCls = "text-neutral-900 dark:text-white"
+  const mutedCls = "text-neutral-400 dark:text-neutral-500"
+
   return (
-    <div className="min-h-screen bg-neutral-50 flex">
+    <div className="min-h-screen bg-neutral-50 dark:bg-neutral-950 flex">
       {/* Sidebar */}
       <aside className="hidden md:flex flex-col w-64 bg-neutral-950 min-h-screen sticky top-0">
         <div className="p-5 border-b border-neutral-800">
@@ -158,14 +171,9 @@ export default function AdminPage() {
               className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-colors text-start ${
                 tab === key ? 'bg-neutral-800 text-white' : 'text-neutral-400 hover:text-white hover:bg-neutral-900'
               }`}>
-              <Icon size={15} />
-              {label}
-              {key === 'products' && stats.pendingCount > 0 && (
-                <span className="ms-auto bg-amber-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full">{stats.pendingCount}</span>
-              )}
-              {key === 'flags' && stats.flagsCount > 0 && (
-                <span className="ms-auto bg-red-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full">{stats.flagsCount}</span>
-              )}
+              <Icon size={15} />{label}
+              {key === 'products' && stats.pendingCount > 0 && <span className="ms-auto bg-amber-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full">{stats.pendingCount}</span>}
+              {key === 'flags' && stats.flagsCount > 0 && <span className="ms-auto bg-red-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full">{stats.flagsCount}</span>}
             </button>
           ))}
         </nav>
@@ -177,38 +185,38 @@ export default function AdminPage() {
         </div>
       </aside>
 
-      {/* Main */}
       <div className="flex-1 p-4 md:p-6 pb-24 md:pb-6">
 
         {tab === 'overview' && (
           <div className="space-y-6">
-            <h1 className="text-xl font-bold text-neutral-900">لوحة الإدارة</h1>
+            <h1 className={titleCls}>لوحة الإدارة</h1>
             <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
               {[
-                { label: 'المستخدمون', value: stats.usersCount, icon: Users, color: 'bg-blue-50 text-blue-600' },
-                { label: 'المنتجات', value: stats.productsCount, icon: Package, color: 'bg-green-50 text-green-600' },
-                { label: 'الطلبات', value: stats.ordersCount, icon: ShoppingBag, color: 'bg-purple-50 text-purple-600' },
-                { label: 'انتظار مراجعة', value: stats.pendingCount, icon: Clock, color: 'bg-amber-50 text-amber-600' },
-                { label: 'بلاغات', value: stats.flagsCount, icon: AlertTriangle, color: 'bg-red-50 text-red-600' },
-                { label: 'إعلانات نشطة', value: stats.adsCount, icon: Megaphone, color: 'bg-pink-50 text-pink-600' },
+                { label: 'المستخدمون', value: stats.usersCount, icon: Users, color: 'bg-blue-50 text-blue-600 dark:bg-blue-900/20 dark:text-blue-400' },
+                { label: 'المنتجات النشطة', value: stats.productsCount, icon: Package, color: 'bg-green-50 text-green-600 dark:bg-green-900/20 dark:text-green-400' },
+                { label: 'الطلبات', value: stats.ordersCount, icon: ShoppingBag, color: 'bg-purple-50 text-purple-600 dark:bg-purple-900/20 dark:text-purple-400' },
+                { label: 'انتظار مراجعة', value: stats.pendingCount, icon: Clock, color: 'bg-amber-50 text-amber-600 dark:bg-amber-900/20 dark:text-amber-400' },
+                { label: 'بلاغات مفتوحة', value: stats.flagsCount, icon: AlertTriangle, color: 'bg-red-50 text-red-600 dark:bg-red-900/20 dark:text-red-400' },
+                { label: 'إعلانات نشطة', value: stats.adsCount, icon: Megaphone, color: 'bg-pink-50 text-pink-600 dark:bg-pink-900/20 dark:text-pink-400' },
               ].map(({ label, value, icon: Icon, color }) => (
-                <div key={label} className="bg-white rounded-2xl p-4 border border-neutral-100">
+                <div key={label} className={cardCls + " p-4"}>
                   <div className={`w-9 h-9 rounded-xl flex items-center justify-center mb-3 ${color}`}><Icon size={16} /></div>
-                  <div className="text-2xl font-bold text-neutral-900">{value}</div>
-                  <div className="text-xs text-neutral-400 mt-0.5">{label}</div>
+                  <div className={"text-2xl font-bold " + textCls}>{value}</div>
+                  <div className={"text-xs mt-0.5 " + mutedCls}>{label}</div>
                 </div>
               ))}
             </div>
             {pendingProducts.length > 0 && (
-              <div className="bg-white rounded-2xl border border-neutral-100 overflow-hidden">
-                <div className="px-4 py-3 border-b border-neutral-50">
-                  <h2 className="font-semibold text-sm text-neutral-900">منتجات تنتظر المراجعة</h2>
+              <div className={cardCls + " overflow-hidden"}>
+                <div className={"px-4 py-3 " + rowCls + " flex items-center justify-between"}>
+                  <h2 className={"font-semibold text-sm " + textCls}>منتجات تنتظر المراجعة</h2>
+                  <span className="text-xs bg-amber-50 text-amber-600 px-2 py-0.5 rounded-full">{stats.pendingCount}</span>
                 </div>
                 {pendingProducts.slice(0, 5).map((p: any) => (
-                  <div key={p.id} className="flex items-center gap-3 px-4 py-3 border-b border-neutral-50 last:border-0">
+                  <div key={p.id} className={"flex items-center gap-3 px-4 py-3 " + rowCls}>
                     <div className="flex-1 min-w-0">
-                      <div className="text-sm font-medium truncate">{p.name}</div>
-                      <div className="text-xs text-neutral-400">{p.profiles?.store_name ?? '—'} · {p.price} د.م.</div>
+                      <div className={"text-sm font-medium truncate " + textCls}>{p.name}</div>
+                      <div className={"text-xs " + mutedCls}>{p.profiles?.store_name ?? '—'} · {p.price?.toLocaleString()} د.م.</div>
                     </div>
                     <div className="flex gap-2 shrink-0">
                       <button onClick={() => approveProduct(p.id)} className="w-8 h-8 bg-green-500 rounded-xl flex items-center justify-center"><CheckCircle size={14} className="text-white" /></button>
@@ -223,15 +231,15 @@ export default function AdminPage() {
 
         {tab === 'products' && (
           <div className="space-y-4">
-            <h1 className="text-xl font-bold text-neutral-900">مراجعة المنتجات</h1>
-            <div className="bg-white rounded-2xl border border-neutral-100 overflow-hidden">
+            <h1 className={titleCls}>مراجعة المنتجات</h1>
+            <div className={cardCls + " overflow-hidden"}>
               {pendingProducts.length === 0
-                ? <p className="text-center text-neutral-400 text-sm py-8">لا توجد منتجات بانتظار المراجعة ✅</p>
+                ? <p className={"text-center text-sm py-8 " + mutedCls}>لا توجد منتجات بانتظار المراجعة ✅</p>
                 : pendingProducts.map((p: any) => (
-                  <div key={p.id} className="flex items-center gap-3 px-4 py-4 border-b border-neutral-50 last:border-0">
+                  <div key={p.id} className={"flex items-center gap-3 px-4 py-4 " + rowCls}>
                     <div className="flex-1 min-w-0">
-                      <div className="font-medium text-sm">{p.name}</div>
-                      <div className="text-xs text-neutral-400 mt-0.5">{p.profiles?.store_name} · {p.price?.toLocaleString()} د.م.</div>
+                      <div className={"font-medium text-sm " + textCls}>{p.name}</div>
+                      <div className={"text-xs mt-0.5 " + mutedCls}>{p.profiles?.store_name ?? '—'} · {p.price?.toLocaleString()} د.م. · {p.category ?? '—'}</div>
                     </div>
                     <div className="flex gap-2 shrink-0">
                       <button onClick={() => approveProduct(p.id)} className="px-3 py-1.5 bg-green-500 text-white text-xs font-medium rounded-xl">قبول</button>
@@ -246,35 +254,33 @@ export default function AdminPage() {
 
         {tab === 'sellers' && (
           <div className="space-y-4">
-            <h1 className="text-xl font-bold text-neutral-900">إدارة المتاجر</h1>
-            <div className="bg-white rounded-2xl border border-neutral-100 overflow-hidden">
+            <h1 className={titleCls}>إدارة المتاجر</h1>
+            <div className={cardCls + " overflow-hidden"}>
               {sellers.length === 0
-                ? <p className="text-center text-neutral-400 text-sm py-8">لا توجد متاجر</p>
+                ? <p className={"text-center text-sm py-8 " + mutedCls}>لا توجد متاجر</p>
                 : sellers.map((s: any) => (
-                  <div key={s.id} className="px-4 py-4 border-b border-neutral-50 last:border-0">
+                  <div key={s.id} className={"px-4 py-4 " + rowCls}>
                     <div className="flex items-center gap-3 mb-3">
-                      <div className="w-10 h-10 rounded-xl bg-neutral-100 flex items-center justify-center font-bold text-neutral-500">
+                      <div className="w-10 h-10 rounded-xl bg-neutral-100 dark:bg-neutral-800 flex items-center justify-center font-bold text-neutral-500">
                         {(s.store_name || s.full_name || 'W').charAt(0).toUpperCase()}
                       </div>
                       <div className="flex-1 min-w-0">
-                        <div className="font-medium text-sm flex items-center gap-2">
+                        <div className={"font-medium text-sm flex items-center gap-2 " + textCls}>
                           {s.store_name || s.full_name || '—'}
                           {s.verified && <BadgeCheck size={14} className="text-blue-500" />}
                           {s.is_premium && <Star size={14} className="text-amber-500 fill-amber-500" />}
                         </div>
-                        <div className="text-xs text-neutral-400">{s.email} · {s.city || '—'}</div>
+                        <div className={"text-xs " + mutedCls}>{s.email} · {s.city || '—'} · عمولة: {s.commission_rate ?? 10}%</div>
                       </div>
                     </div>
                     <div className="flex flex-wrap gap-2">
                       <button onClick={() => toggleVerified(s.id, s.verified)}
-                        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-medium ${s.verified ? 'bg-blue-50 text-blue-600' : 'bg-neutral-100 text-neutral-500'}`}>
-                        <BadgeCheck size={12} />
-                        {s.verified ? 'موثق ✓' : 'توثيق'}
+                        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-medium transition-colors ${s.verified ? 'bg-blue-50 text-blue-600 dark:bg-blue-900/20 dark:text-blue-400' : 'bg-neutral-100 dark:bg-neutral-800 text-neutral-500'}`}>
+                        <BadgeCheck size={12} />{s.verified ? 'موثق ✓' : 'توثيق'}
                       </button>
                       <button onClick={() => togglePremium(s.id, s.is_premium)}
-                        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-medium ${s.is_premium ? 'bg-amber-50 text-amber-600' : 'bg-neutral-100 text-neutral-500'}`}>
-                        <Star size={12} />
-                        {s.is_premium ? 'مميز ⭐' : 'تمييز'}
+                        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-medium transition-colors ${s.is_premium ? 'bg-amber-50 text-amber-600 dark:bg-amber-900/20 dark:text-amber-400' : 'bg-neutral-100 dark:bg-neutral-800 text-neutral-500'}`}>
+                        <Star size={12} />{s.is_premium ? 'مميز ⭐' : 'تمييز'}
                       </button>
                     </div>
                   </div>
@@ -286,26 +292,24 @@ export default function AdminPage() {
 
         {tab === 'ads' && (
           <div className="space-y-4">
-            <h1 className="text-xl font-bold text-neutral-900">إدارة الإعلانات</h1>
-            <div className="bg-white rounded-2xl border border-neutral-100 overflow-hidden">
+            <h1 className={titleCls}>إدارة الإعلانات</h1>
+            <div className={cardCls + " overflow-hidden"}>
               {ads.length === 0
-                ? <p className="text-center text-neutral-400 text-sm py-8">لا توجد إعلانات</p>
+                ? <p className={"text-center text-sm py-8 " + mutedCls}>لا توجد إعلانات</p>
                 : ads.map((a: any) => (
-                  <div key={a.id} className="flex items-center gap-3 px-4 py-4 border-b border-neutral-50 last:border-0">
+                  <div key={a.id} className={"flex items-center gap-3 px-4 py-4 " + rowCls}>
                     <div className="flex-1 min-w-0">
-                      <div className="font-medium text-sm truncate">{a.title || a.headline}</div>
-                      <div className="text-xs text-neutral-400 mt-0.5">
-                        {a.profiles?.store_name || a.profiles?.full_name || '—'} · {a.views_count ?? 0} مشاهدة
-                      </div>
-                      <div className="flex items-center gap-2 mt-1">
-                        {a.is_vip && <span className="text-[10px] bg-amber-50 text-amber-600 px-2 py-0.5 rounded-full">VIP</span>}
-                        <span className={`text-[10px] px-2 py-0.5 rounded-full ${a.status === 'active' ? 'bg-green-50 text-green-600' : 'bg-neutral-100 text-neutral-500'}`}>
+                      <div className={"font-medium text-sm truncate " + textCls}>{a.title || a.headline || '—'}</div>
+                      <div className={"text-xs mt-0.5 " + mutedCls}>{a.profiles?.store_name || a.profiles?.full_name || '—'} · {a.views_count ?? 0} مشاهدة</div>
+                      <div className="flex items-center gap-2 mt-1.5">
+                        {a.is_vip && <span className="text-[10px] bg-amber-50 text-amber-600 dark:bg-amber-900/20 dark:text-amber-400 px-2 py-0.5 rounded-full font-medium">VIP</span>}
+                        <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium ${a.status === 'active' ? 'bg-green-50 text-green-600 dark:bg-green-900/20 dark:text-green-400' : 'bg-neutral-100 dark:bg-neutral-800 text-neutral-500'}`}>
                           {a.status === 'active' ? 'نشط' : 'موقوف'}
                         </span>
                       </div>
                     </div>
                     <button onClick={() => toggleAd(a.id, a.status)}
-                      className={`px-3 py-1.5 text-xs font-medium rounded-xl shrink-0 ${a.status === 'active' ? 'bg-red-50 text-red-600' : 'bg-green-50 text-green-600'}`}>
+                      className={`px-3 py-1.5 text-xs font-medium rounded-xl shrink-0 ${a.status === 'active' ? 'bg-red-50 text-red-600 hover:bg-red-100' : 'bg-green-50 text-green-600 hover:bg-green-100'}`}>
                       {a.status === 'active' ? 'إيقاف' : 'تفعيل'}
                     </button>
                   </div>
@@ -317,38 +321,38 @@ export default function AdminPage() {
 
         {tab === 'commissions' && (
           <div className="space-y-4">
-            <h1 className="text-xl font-bold text-neutral-900">إدارة العمولات</h1>
-            <div className="bg-white rounded-2xl border border-neutral-100 p-4">
-              <h2 className="font-semibold text-sm text-neutral-900 mb-3">العمولة العامة لجميع المتاجر</h2>
+            <h1 className={titleCls}>إدارة العمولات</h1>
+            <div className={cardCls + " p-4"}>
+              <h2 className={"font-semibold text-sm mb-3 " + textCls}>العمولة العامة لجميع المتاجر</h2>
               <div className="flex items-center gap-3">
                 <input type="number" value={globalCommission} onChange={e => setGlobalCommission(Number(e.target.value))}
-                  min={0} max={50} className="w-24 px-3 py-2 border border-neutral-200 rounded-xl text-sm text-center" />
-                <span className="text-sm text-neutral-500">%</span>
+                  min={0} max={50} className="w-24 px-3 py-2 border border-neutral-200 dark:border-neutral-700 bg-white dark:bg-neutral-800 text-neutral-900 dark:text-white rounded-xl text-sm text-center" />
+                <span className={"text-sm " + mutedCls}>%</span>
                 <button onClick={async () => {
                   const supabase = createClient()
                   await supabase.from('profiles').update({ commission_rate: globalCommission }).eq('role', 'seller')
-                  toast.success('تم تحديث العمولة العامة')
+                  toast.success('تم تحديث العمولة العامة ✅')
                   setSellers(prev => prev.map(s => ({ ...s, commission_rate: globalCommission })))
-                }} className="px-4 py-2 bg-neutral-900 text-white text-xs font-medium rounded-xl">
+                }} className="px-4 py-2 bg-neutral-900 dark:bg-white text-white dark:text-neutral-900 text-xs font-medium rounded-xl">
                   تطبيق على الجميع
                 </button>
               </div>
             </div>
-            <div className="bg-white rounded-2xl border border-neutral-100 overflow-hidden">
-              <div className="px-4 py-3 border-b border-neutral-50">
-                <h2 className="font-semibold text-sm text-neutral-900">عمولة كل متجر</h2>
+            <div className={cardCls + " overflow-hidden"}>
+              <div className={"px-4 py-3 " + rowCls}>
+                <h2 className={"font-semibold text-sm " + textCls}>عمولة كل متجر</h2>
               </div>
               {sellers.map((s: any) => (
-                <div key={s.id} className="flex items-center gap-3 px-4 py-3 border-b border-neutral-50 last:border-0">
+                <div key={s.id} className={"flex items-center gap-3 px-4 py-3 " + rowCls}>
                   <div className="flex-1 min-w-0">
-                    <div className="font-medium text-sm">{s.store_name || s.full_name || '—'}</div>
-                    <div className="text-xs text-neutral-400">{s.email}</div>
+                    <div className={"font-medium text-sm " + textCls}>{s.store_name || s.full_name || '—'}</div>
+                    <div className={"text-xs " + mutedCls}>{s.email}</div>
                   </div>
                   <div className="flex items-center gap-2 shrink-0">
                     <input type="number" defaultValue={s.commission_rate ?? 10} min={0} max={50}
-                      className="w-16 px-2 py-1.5 border border-neutral-200 rounded-xl text-sm text-center"
+                      className="w-16 px-2 py-1.5 border border-neutral-200 dark:border-neutral-700 bg-white dark:bg-neutral-800 text-neutral-900 dark:text-white rounded-xl text-sm text-center"
                       onBlur={e => updateCommission(s.id, Number(e.target.value))} />
-                    <span className="text-xs text-neutral-400">%</span>
+                    <span className={"text-xs " + mutedCls}>%</span>
                   </div>
                 </div>
               ))}
@@ -356,21 +360,39 @@ export default function AdminPage() {
           </div>
         )}
 
+        {/* ✅ FLAGS مصلح */}
         {tab === 'flags' && (
           <div className="space-y-4">
-            <h1 className="text-xl font-bold text-neutral-900">البلاغات</h1>
-            <div className="bg-white rounded-2xl border border-neutral-100 overflow-hidden">
+            <div className="flex items-center justify-between">
+              <h1 className={titleCls}>البلاغات</h1>
+              <span className={"text-sm " + mutedCls}>{flags.length} بلاغ مفتوح</span>
+            </div>
+            <div className={cardCls + " overflow-hidden"}>
               {flags.length === 0
-                ? <p className="text-center text-neutral-400 text-sm py-8">لا توجد بلاغات مفتوحة ✅</p>
+                ? <p className={"text-center text-sm py-8 " + mutedCls}>لا توجد بلاغات مفتوحة ✅</p>
                 : flags.map((f: any) => (
-                  <div key={f.id} className="px-4 py-4 border-b border-neutral-50 last:border-0">
+                  <div key={f.id} className={"px-4 py-4 " + rowCls}>
                     <div className="flex items-start justify-between gap-3">
                       <div className="flex-1 min-w-0">
-                        <div className="text-sm font-medium">{f.products?.name || 'منتج محذوف'}</div>
-                        <div className="text-xs text-neutral-400 mt-1">بلّغ عنه: {f.profiles?.full_name || '—'}</div>
-                        <div className="text-xs text-neutral-500 mt-1 bg-neutral-50 rounded-lg px-2 py-1">{f.reason || 'بدون سبب'}</div>
+                        <div className="flex items-center gap-2 mb-1">
+                          <span className={"text-sm font-semibold " + textCls}>{f.products?.name || 'منتج محذوف'}</span>
+                          {f.products?.id && (
+                            <a href={`/ar/product/${f.products.id}`} target="_blank" rel="noreferrer" className="text-neutral-400 hover:text-neutral-600">
+                              <ExternalLink size={12} />
+                            </a>
+                          )}
+                        </div>
+                        {f.products?.price && <div className={"text-xs mb-1 " + mutedCls}>{f.products.price.toLocaleString()} د.م.</div>}
+                        <div className="inline-flex items-center gap-1 bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 text-xs font-medium px-2.5 py-1 rounded-lg mb-2">
+                          <Flag size={10} />{reasonLabel[f.reason] || f.reason || 'بدون سبب'}
+                        </div>
+                        {f.details && <div className={"text-xs bg-neutral-50 dark:bg-neutral-800 rounded-lg px-3 py-2 mb-2 " + mutedCls}>{f.details}</div>}
+                        <div className="text-[10px] text-neutral-300 dark:text-neutral-600">{new Date(f.created_at).toLocaleDateString('ar-MA')}</div>
                       </div>
-                      <button onClick={() => resolveFlag(f.id)} className="px-3 py-1.5 bg-neutral-900 text-white text-xs font-medium rounded-xl shrink-0">معالجة</button>
+                      <button onClick={() => resolveFlag(f.id)}
+                        className="px-3 py-1.5 bg-neutral-900 dark:bg-white text-white dark:text-neutral-900 text-xs font-medium rounded-xl shrink-0 hover:opacity-90">
+                        معالجة
+                      </button>
                     </div>
                   </div>
                 ))
@@ -381,21 +403,21 @@ export default function AdminPage() {
 
         {tab === 'orders' && (
           <div className="space-y-4">
-            <h1 className="text-xl font-bold text-neutral-900">جميع الطلبات</h1>
-            <div className="bg-white rounded-2xl border border-neutral-100 overflow-hidden">
+            <h1 className={titleCls}>جميع الطلبات</h1>
+            <div className={cardCls + " overflow-hidden"}>
               {recentOrders.length === 0
-                ? <p className="text-center text-neutral-400 text-sm py-8">لا توجد طلبات</p>
+                ? <p className={"text-center text-sm py-8 " + mutedCls}>لا توجد طلبات</p>
                 : recentOrders.map((o: any) => (
-                  <div key={o.id} className="flex items-center gap-3 px-4 py-3 border-b border-neutral-50 last:border-0">
+                  <div key={o.id} className={"flex items-center gap-3 px-4 py-3 " + rowCls}>
                     <div className="flex-1">
-                      <div className="text-sm font-medium">#{o.id.slice(-6).toUpperCase()}</div>
-                      <div className="text-xs text-neutral-400">{new Date(o.created_at).toLocaleDateString('ar-MA')}</div>
+                      <div className={"text-sm font-medium " + textCls}>#{o.id.slice(-6).toUpperCase()}</div>
+                      <div className={"text-xs " + mutedCls}>{new Date(o.created_at).toLocaleDateString('ar-MA')}</div>
                     </div>
-                    <div className="text-sm font-bold">{o.total?.toLocaleString()} د.م.</div>
-                    <span className={`text-xs px-2 py-1 rounded-lg font-medium ${
-                      o.status === 'delivered' ? 'bg-green-50 text-green-600' :
-                      o.status === 'pending' ? 'bg-amber-50 text-amber-600' :
-                      'bg-neutral-100 text-neutral-500'
+                    <div className={"text-sm font-bold " + textCls}>{o.total?.toLocaleString()} د.م.</div>
+                    <span className={`text-xs px-2.5 py-1 rounded-xl font-medium ${
+                      o.status === 'delivered' ? 'bg-green-50 text-green-600 dark:bg-green-900/20 dark:text-green-400' :
+                      o.status === 'pending' ? 'bg-amber-50 text-amber-600 dark:bg-amber-900/20 dark:text-amber-400' :
+                      'bg-neutral-100 dark:bg-neutral-800 text-neutral-500'
                     }`}>{o.status}</span>
                   </div>
                 ))
@@ -405,15 +427,11 @@ export default function AdminPage() {
         )}
       </div>
 
-      {/* Mobile bottom nav */}
       <nav className="md:hidden fixed bottom-0 start-0 end-0 bg-neutral-950 border-t border-neutral-800 flex z-50 overflow-x-auto">
         {TABS.map(({ key, icon: Icon, label }) => (
           <button key={key} onClick={() => setTab(key)}
-            className={`flex-1 flex flex-col items-center gap-0.5 py-2 text-[9px] font-medium transition-colors min-w-[50px] ${
-              tab === key ? 'text-white' : 'text-neutral-500'
-            }`}>
-            <Icon size={16} strokeWidth={tab === key ? 2.5 : 1.8} />
-            {label}
+            className={`flex-1 flex flex-col items-center gap-0.5 py-2 text-[9px] font-medium transition-colors min-w-[50px] ${tab === key ? 'text-white' : 'text-neutral-500'}`}>
+            <Icon size={16} strokeWidth={tab === key ? 2.5 : 1.8} />{label}
           </button>
         ))}
       </nav>
