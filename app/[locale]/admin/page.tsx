@@ -61,7 +61,7 @@ export default function AdminPage() {
         supabase.from('products').select('id, name, price, category, created_at, profiles(store_name)').eq('status', 'pending').order('created_at', { ascending: false }).limit(10),
         supabase.from('orders').select('*').order('created_at', { ascending: false }).limit(10),
         // ✅ بدون join على reporter لأنه ممكن يكون null
-        supabase.from('product_reports').select('id, reason, details, status, created_at, product_id, products(id, name, price)').eq('resolved', false).order('created_at', { ascending: false }).limit(30),
+        supabase.from('product_reports').select('*').eq('resolved', false).order('created_at', { ascending: false }).limit(30),
         supabase.from('profiles').select('id, full_name, store_name, email, city, verified, is_premium, commission_rate').eq('role', 'seller').order('created_at', { ascending: false }).limit(30),
         supabase.from('ads').select('id, title, headline, status, views_count, is_vip, profiles(full_name, store_name)').order('created_at', { ascending: false }).limit(20),
       ])
@@ -375,7 +375,7 @@ export default function AdminPage() {
                     <div className="flex items-start justify-between gap-3">
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 mb-1">
-                          <span className={"text-sm font-semibold " + textCls}>{f.products?.name || 'منتج محذوف'}</span>
+                          <span className={"text-sm font-semibold " + textCls}>{'بلاغ #' + f.id.slice(-6).toUpperCase()}</span>
                           {f.products?.id && (
                             <a href={`/ar/product/${f.products.id}`} target="_blank" rel="noreferrer" className="text-neutral-400 hover:text-neutral-600">
                               <ExternalLink size={12} />
