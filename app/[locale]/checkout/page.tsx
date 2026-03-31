@@ -1,5 +1,5 @@
 'use client'
-import { Suspense, useState, useEffect, useCallback } from 'react'
+import { Suspense, useState, useEffect } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter } from '@/lib/i18n/navigation'
@@ -20,7 +20,6 @@ function CheckoutContent() {
   const [loading, setLoading] = useState(true)
   const [ordering, setOrdering] = useState(false)
   const [ordered, setOrdered] = useState(false)
-
   const [address, setAddress] = useState('')
   const [city, setCity] = useState('')
   const [phone, setPhone] = useState('')
@@ -50,28 +49,26 @@ function CheckoutContent() {
   }, [productId])
 
   async function handleOrder() {
-  if (!address.trim()) { toast.error('يجب إدخال العنوان'); return }
-  if (!city) { toast.error('يجب اختيار المدينة'); return }
-  if (!phone.trim()) { toast.error('يجب إدخال رقم الهاتف'); return }
-  setOrdering(true)
-  const supabase = createClient()
-  const { error, data } = await supabase.from('orders').insert({
-    buyer_id: user.id,
-    seller_id: product.seller_id,
-    total: product.price,
-    subtotal: product.price,
-    status: 'pending',
-    payment_method: 'cod',
-    shipping_address: `${address}، ${city}`,
-    items: [{ name: product.name, quantity: 1, price: product.price, total: product.price }],
-  }).select()
-  console.log('ERROR:', error)
-  console.log('DATA:', data)
-  console.log('USER:', user.id)
-  console.log('SELLER:', product.seller_id)
-  setOrdering(false)
-}
-    if (error) { toast.error('حدث خطأ: ' + error.message); setOrdering(false); return }
+    if (!address.trim()) { toast.error('يجب إدخال العنوان'); return }
+    if (!city) { toast.error('يجب اختيار المدينة'); return }
+    if (!phone.trim()) { toast.error('يجب إدخال رقم الهاتف'); return }
+    setOrdering(true)
+    const supabase = createClient()
+    const { error } = await supabase.from('orders').insert({
+      buyer_id: user.id,
+      seller_id: product.seller_id,
+      total: product.price,
+      subtotal: product.price,
+      status: 'pending',
+      payment_method: 'cod',
+      shipping_address: `${address}، ${city}`,
+      items: [{ name: product.name, quantity: 1, price: product.price, total: product.price }],
+    })
+    if (error) {
+      toast.error('حدث خطأ: ' + error.message)
+      setOrdering(false)
+      return
+    }
     await supabase.from('notifications').insert({
       user_id: product.seller_id,
       title: 'طلب جديد! 🛍️',
@@ -105,7 +102,6 @@ function CheckoutContent() {
 
   return (
     <div className="min-h-screen bg-neutral-50 dark:bg-neutral-950">
-      {/* Header */}
       <header className="sticky top-0 z-40 bg-white/90 dark:bg-neutral-950/90 backdrop-blur-xl border-b border-neutral-100 dark:border-neutral-800 flex items-center gap-3 px-4 h-14">
         <button onClick={() => router.back()} className="p-2 rounded-xl hover:bg-neutral-100 dark:hover:bg-neutral-800">
           <ArrowRight size={18} className="text-neutral-700 dark:text-neutral-300 rotate-180" />
@@ -117,7 +113,6 @@ function CheckoutContent() {
       </header>
 
       <div className="px-4 py-5 pb-36 max-w-lg mx-auto space-y-4">
-        {/* Product */}
         <div className="bg-white dark:bg-neutral-900 rounded-2xl border border-neutral-100 dark:border-neutral-800 p-4 flex items-center gap-3">
           <div className="w-16 h-16 rounded-xl bg-neutral-100 dark:bg-neutral-800 overflow-hidden shrink-0">
             {product?.images?.[0]
@@ -135,7 +130,6 @@ function CheckoutContent() {
           </div>
         </div>
 
-        {/* Shipping */}
         <div className="bg-white dark:bg-neutral-900 rounded-2xl border border-neutral-100 dark:border-neutral-800 p-4 space-y-4">
           <div className="flex items-center gap-2">
             <Truck size={16} className="text-neutral-500" />
@@ -162,7 +156,6 @@ function CheckoutContent() {
           </div>
         </div>
 
-        {/* Payment */}
         <div className="bg-white dark:bg-neutral-900 rounded-2xl border border-neutral-100 dark:border-neutral-800 p-4">
           <div className="flex items-center gap-2 mb-3">
             <CreditCard size={16} className="text-neutral-500" />
@@ -182,7 +175,6 @@ function CheckoutContent() {
           </div>
         </div>
 
-        {/* Summary */}
         <div className="bg-white dark:bg-neutral-900 rounded-2xl border border-neutral-100 dark:border-neutral-800 p-4">
           <h2 className="font-semibold text-sm text-neutral-900 dark:text-white mb-3">ملخص الطلب</h2>
           <div className="space-y-2">
@@ -201,7 +193,6 @@ function CheckoutContent() {
           </div>
         </div>
 
-        {/* Protection */}
         <div className="flex items-center gap-3 bg-green-50 dark:bg-green-900/20 border border-green-100 dark:border-green-800 rounded-2xl p-3">
           <ShieldCheck size={18} className="text-green-600 dark:text-green-400 shrink-0" />
           <div>
@@ -211,7 +202,6 @@ function CheckoutContent() {
         </div>
       </div>
 
-      {/* Bottom CTA */}
       <div className="fixed bottom-0 start-0 end-0 bg-white/90 dark:bg-neutral-950/90 backdrop-blur-xl border-t border-neutral-100 dark:border-neutral-800 p-4">
         <button onClick={handleOrder} disabled={ordering}
           className="w-full py-4 bg-neutral-900 dark:bg-white text-white dark:text-neutral-900 font-bold rounded-2xl text-base disabled:opacity-50 flex items-center justify-center gap-2">
