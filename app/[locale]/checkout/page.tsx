@@ -50,21 +50,27 @@ function CheckoutContent() {
   }, [productId])
 
   async function handleOrder() {
-    if (!address.trim()) { toast.error('يجب إدخال العنوان'); return }
-    if (!city) { toast.error('يجب اختيار المدينة'); return }
-    if (!phone.trim()) { toast.error('يجب إدخال رقم الهاتف'); return }
-    setOrdering(true)
-    const supabase = createClient()
-    const { error } = await supabase.from('orders').insert({
-      buyer_id: user.id,
-      seller_id: product.seller_id,
-      total: product.price,
-      subtotal: product.price,
-      status: 'pending',
-      payment_method: 'cod',
-      shipping_address: `${address}، ${city}`,
-      items: [{ name: product.name, quantity: 1, price: product.price, total: product.price }],
-    })
+  if (!address.trim()) { toast.error('يجب إدخال العنوان'); return }
+  if (!city) { toast.error('يجب اختيار المدينة'); return }
+  if (!phone.trim()) { toast.error('يجب إدخال رقم الهاتف'); return }
+  setOrdering(true)
+  const supabase = createClient()
+  const { error, data } = await supabase.from('orders').insert({
+    buyer_id: user.id,
+    seller_id: product.seller_id,
+    total: product.price,
+    subtotal: product.price,
+    status: 'pending',
+    payment_method: 'cod',
+    shipping_address: `${address}، ${city}`,
+    items: [{ name: product.name, quantity: 1, price: product.price, total: product.price }],
+  }).select()
+  console.log('ERROR:', error)
+  console.log('DATA:', data)
+  console.log('USER:', user.id)
+  console.log('SELLER:', product.seller_id)
+  setOrdering(false)
+}
     if (error) { toast.error('حدث خطأ: ' + error.message); setOrdering(false); return }
     await supabase.from('notifications').insert({
       user_id: product.seller_id,
