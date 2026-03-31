@@ -6,10 +6,10 @@ import Image from 'next/image'
 import {
   Users, Package, ShoppingBag, Clock, AlertTriangle, CheckCircle,
   XCircle, Shield, BarChart2, Flag, Store, LogOut, Star, Megaphone,
-  Percent, BadgeCheck, ExternalLink, CreditCard, Crown
+  Percent, BadgeCheck, ExternalLink, CreditCard, Crown, FileText
 } from 'lucide-react'
 import toast from 'react-hot-toast'
-import { generateInvoicePDF } from '@/lib/pdf/invoice' و import { FileText } from 'lucide-react'
+import { generateInvoicePDF } from '@/lib/pdf/invoice'
 
 const TABS = [
   { key: 'overview', icon: BarChart2, label: 'نظرة عامة' },
@@ -178,6 +178,45 @@ export default function AdminPage() {
     toast.success('تم معالجة البلاغ ✅')
     setFlags(prev => prev.filter(f => f.id !== id))
     setStats(prev => ({ ...prev, flagsCount: prev.flagsCount - 1 }))
+  }
+
+  async function handleAdminInvoice(order: any) {
+    setGeneratingPdf(order.id)
+    try {
+      const supabase = createClient()
+      const [{ data: seller }, { data: buyer }] = await Promise.all([
+        supabase.from('profiles').select('full_name, store_name, email, city, phone, commission_rate').eq('id', order.seller_id).single(),
+        supabase.from('profiles').select('full_name, email').eq('id', order.buyer_id).single(),
+      ])
+      const items = Array.isArray(order.items) ? order.items : []
+      const commissionRate = seller?.commission_rate ?? 6
+      const subtotal = order.subtotal || order.total
+      const commission = Math.round(subtotal * commissionRate / 100)
+      generateInvoicePDF({
+        orderId: order.id,
+        orderDate: new Date(order.created_at).toLocaleDateString('fr-MA'),
+        status: order.status,
+        sellerName: seller?.full_name || '—',
+        sellerStoreName: seller?.store_name || seller?.full_name || '—',
+        sellerEmail: seller?.email || '—',
+        sellerCity: seller?.city || '—',
+        sellerPhone: seller?.phone,
+        buyerName: buyer?.full_name || '—',
+        buyerEmail: buyer?.email || '—',
+        shippingAddress: order.shipping_address,
+        items: items.length > 0 ? items : [{ name: 'منتج', quantity: 1, price: order.total, total: order.total }],
+        subtotal,
+        commission,
+        commissionRate,
+        total: order.total - commission,
+        paymentMethod: order.payment_method,
+        trackingNumber: order.tracking_number,
+      })
+      toast.success('تم توليد الفاتورة ✅')
+    } catch {
+      toast.error('خطأ في توليد الفاتورة')
+    }
+    setGeneratingPdf(null)
   }
 
   async function toggleAd(id: string, current: string) {
@@ -548,6 +587,11 @@ export default function AdminPage() {
                     </div>
                     <div className={"text-sm font-bold " + textCls}>{o.total?.toLocaleString()} د.م.</div>
                     <span className={`text-xs px-2.5 py-1 rounded-xl font-medium ${o.status === 'delivered' ? 'bg-green-50 text-green-600 dark:bg-green-900/20 dark:text-green-400' : o.status === 'pending' ? 'bg-amber-50 text-amber-600 dark:bg-amber-900/20 dark:text-amber-400' : 'bg-neutral-100 dark:bg-neutral-800 text-neutral-500'}`}>{o.status}</span>
+                    <button onClick={() => handleAdminInvoice(o)} disabled={generatingPdf === o.id}
+                      className="flex items-center gap-1.5 px-3 py-1.5 bg-neutral-900 dark:bg-white text-white dark:text-neutral-900 text-xs font-medium rounded-xl disabled:opacity-50 shrink-0">
+                      <FileText size={12} />
+                      {generatingPdf === o.id ? '...' : 'PDF'}
+                    </button>
                   </div>
                 ))
               }
