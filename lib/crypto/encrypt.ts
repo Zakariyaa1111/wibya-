@@ -1,9 +1,8 @@
 // lib/crypto/encrypt.ts
-// تشفير وفك تشفير البيانات الحساسة
 
 const KEY = process.env.NEXT_PUBLIC_ENCRYPTION_KEY || 'wibya_secret_2026'
 
-// تشفير بسيط باستخدام XOR + Base64
+// تشفير بسيط XOR + Base64 (fallback)
 export function encrypt(text: string): string {
   if (!text) return ''
   try {
@@ -28,7 +27,7 @@ export function decrypt(encoded: string): string {
   }
 }
 
-// تشفير أقوى باستخدام AES-like عبر Web Crypto API
+// تشفير AES-GCM عبر Web Crypto API
 export async function encryptStrong(text: string): Promise<string> {
   if (!text) return ''
   try {
@@ -46,12 +45,13 @@ export async function encryptStrong(text: string): Promise<string> {
       keyMaterial,
       encoder.encode(text)
     )
-    const combined = new Uint8Array(iv.length + encrypted.byteLength)
-    combined.set(iv)
-    combined.set(new Uint8Array(encrypted), iv.length)
+    // ✅ إصلاح: Array.from بدل spread operator
+    const ivArray = Array.from(iv)
+    const encryptedArray = Array.from(new Uint8Array(encrypted))
+    const combined = ivArray.concat(encryptedArray)
     return btoa(String.fromCharCode(...combined))
   } catch {
-    return encrypt(text) // fallback
+    return encrypt(text)
   }
 }
 
@@ -60,9 +60,10 @@ export async function decryptStrong(encoded: string): Promise<string> {
   try {
     const encoder = new TextEncoder()
     const decoder = new TextDecoder()
-    const combined = new Uint8Array(Array.from(atob(encoded)).map(c => c.charCodeAt(0)))
-    const iv = combined.slice(0, 12)
-    const encrypted = combined.slice(12)
+    // ✅ إصلاح: Array.from بدل spread operator
+    const combined = Array.from(atob(encoded)).map(c => c.charCodeAt(0))
+    const iv = new Uint8Array(combined.slice(0, 12))
+    const encrypted = new Uint8Array(combined.slice(12))
     const keyMaterial = await crypto.subtle.importKey(
       'raw',
       encoder.encode(KEY.padEnd(32, '0').slice(0, 32)),
@@ -77,18 +78,16 @@ export async function decryptStrong(encoded: string): Promise<string> {
     )
     return decoder.decode(decrypted)
   } catch {
-    return decrypt(encoded) // fallback
+    return decrypt(encoded)
   }
 }
 
-// تحقق من صحة رقم البطاقة الوطنية المغربية
+// تحقق من رقم البطاقة الوطنية المغربية
 export function validateIdNumber(id: string): boolean {
-  // البطاقة الوطنية المغربية: حرف أو حرفان + أرقام
   return /^[A-Z]{1,2}\d{5,7}$/.test(id.toUpperCase().trim())
 }
 
 // تحقق من تاريخ الانتهاء
 export function validateExpiryDate(date: string): boolean {
-  const d = new Date(date)
-  return d > new Date()
+  return new Date(date) > new Date()
 }
