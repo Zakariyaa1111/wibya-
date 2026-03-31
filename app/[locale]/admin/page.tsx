@@ -9,6 +9,7 @@ import {
   Percent, BadgeCheck, ExternalLink, CreditCard, Crown
 } from 'lucide-react'
 import toast from 'react-hot-toast'
+import { generateInvoicePDF } from '@/lib/pdf/invoice' و import { FileText } from 'lucide-react'
 
 const TABS = [
   { key: 'overview', icon: BarChart2, label: 'نظرة عامة' },
@@ -36,6 +37,7 @@ export default function AdminPage() {
   const [premiumRequests, setPremiumRequests] = useState<any[]>([])
   const [globalCommission, setGlobalCommission] = useState(10)
   const [selectedFlag, setSelectedFlag] = useState<any>(null)
+  const [generatingPdf, setGeneratingPdf] = useState<string | null>(null)
 
   useEffect(() => {
     async function load() {
