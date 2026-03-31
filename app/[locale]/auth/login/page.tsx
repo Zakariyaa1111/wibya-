@@ -1,4 +1,5 @@
 'use client'
+import Image from 'next/image'
 import { useState, Suspense } from 'react'
 import { useTranslations } from 'next-intl'
 import { Link, useRouter } from '@/lib/i18n/navigation'
@@ -50,9 +51,7 @@ function LoginForm() {
         <button onClick={() => router.back()} className="p-2 rounded-xl hover:bg-neutral-100">
           <ArrowRight size={20} className="text-neutral-600 rotate-180" />
         </button>
-        <div className="w-8 h-8 bg-neutral-900 rounded-xl flex items-center justify-center">
-          <span className="text-white font-display font-bold text-sm">W</span>
-        </div>
+        <Image src="/logo.png" alt="Wibya" width={36} height={36} className="object-contain" />
         <div className="w-10" />
       </div>
 

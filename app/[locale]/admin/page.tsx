@@ -2,6 +2,7 @@
 import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter } from '@/lib/i18n/navigation'
+import Image from 'next/image'
 import {
   Users, Package, ShoppingBag, Clock, AlertTriangle, CheckCircle,
   XCircle, Shield, BarChart2, Flag, Store, LogOut, Star, Megaphone,
@@ -30,7 +31,6 @@ export default function AdminPage() {
   const [sellers, setSellers] = useState<any[]>([])
   const [ads, setAds] = useState<any[]>([])
   const [globalCommission, setGlobalCommission] = useState(10)
-  const [selectedFlag, setSelectedFlag] = useState<any>(null)
 
   useEffect(() => {
     async function load() {
@@ -157,9 +157,7 @@ export default function AdminPage() {
       <aside className="hidden md:flex flex-col w-64 bg-neutral-950 min-h-screen sticky top-0">
         <div className="p-5 border-b border-neutral-800">
           <div className="flex items-center gap-3">
-            <div className="w-8 h-8 bg-brand-500 rounded-lg flex items-center justify-center">
-              <Shield size={16} className="text-white" />
-            </div>
+            <Image src="/logo.png" alt="Wibya" width={32} height={32} className="object-contain" />
             <div>
               <div className="font-bold text-white text-sm">لوحة الإدارة</div>
               <div className="text-xs text-neutral-500">Wibya Admin</div>
@@ -361,6 +359,7 @@ export default function AdminPage() {
           </div>
         )}
 
+        {/* ✅ FLAGS مصلح */}
         {tab === 'flags' && (
           <div className="space-y-4">
             <div className="flex items-center justify-between">
@@ -376,81 +375,27 @@ export default function AdminPage() {
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 mb-1">
                           <span className={"text-sm font-semibold " + textCls}>{'بلاغ #' + f.id.slice(-6).toUpperCase()}</span>
+                          {f.products?.id && (
+                            <a href={`/ar/product/${f.products.id}`} target="_blank" rel="noreferrer" className="text-neutral-400 hover:text-neutral-600">
+                              <ExternalLink size={12} />
+                            </a>
+                          )}
                         </div>
-                        <div className="inline-flex items-center gap-1 bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 text-xs font-medium px-2.5 py-1 rounded-lg mb-1">
+                        {f.products?.price && <div className={"text-xs mb-1 " + mutedCls}>{f.products.price.toLocaleString()} د.م.</div>}
+                        <div className="inline-flex items-center gap-1 bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 text-xs font-medium px-2.5 py-1 rounded-lg mb-2">
                           <Flag size={10} />{reasonLabel[f.reason] || f.reason || 'بدون سبب'}
                         </div>
-                        <div className={"text-[10px] " + mutedCls}>{new Date(f.created_at).toLocaleDateString('ar-MA')}</div>
+                        {f.details && <div className={"text-xs bg-neutral-50 dark:bg-neutral-800 rounded-lg px-3 py-2 mb-2 " + mutedCls}>{f.details}</div>}
+                        <div className="text-[10px] text-neutral-300 dark:text-neutral-600">{new Date(f.created_at).toLocaleDateString('ar-MA')}</div>
                       </div>
-                      <div className="flex flex-col gap-2 shrink-0">
-                        <button onClick={() => setSelectedFlag(f)}
-                          className="px-3 py-1.5 bg-blue-50 text-blue-600 dark:bg-blue-900/20 dark:text-blue-400 text-xs font-medium rounded-xl hover:opacity-90">
-                          التفاصيل
-                        </button>
-                        <button onClick={() => resolveFlag(f.id)}
-                          className="px-3 py-1.5 bg-neutral-900 dark:bg-white text-white dark:text-neutral-900 text-xs font-medium rounded-xl hover:opacity-90">
-                          معالجة
-                        </button>
-                      </div>
+                      <button onClick={() => resolveFlag(f.id)}
+                        className="px-3 py-1.5 bg-neutral-900 dark:bg-white text-white dark:text-neutral-900 text-xs font-medium rounded-xl shrink-0 hover:opacity-90">
+                        معالجة
+                      </button>
                     </div>
                   </div>
                 ))
               }
-            </div>
-          </div>
-        )}
-
-        {/* Flag Details Modal */}
-        {selectedFlag && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4"
-            onClick={(e) => { if (e.target === e.currentTarget) setSelectedFlag(null) }}>
-            <div className="bg-white dark:bg-neutral-900 rounded-3xl w-full max-w-md p-6 shadow-2xl">
-              <div className="flex items-center justify-between mb-5">
-                <h3 className={"font-bold text-lg " + textCls}>تفاصيل البلاغ</h3>
-                <button onClick={() => setSelectedFlag(null)} className="p-1.5 rounded-xl hover:bg-neutral-100 dark:hover:bg-neutral-800">
-                  <XCircle size={20} className="text-neutral-400" />
-                </button>
-              </div>
-              <div className="space-y-3">
-                <div className={"rounded-2xl p-4 bg-neutral-50 dark:bg-neutral-800"}>
-                  <span className={"text-xs font-medium " + mutedCls}>رقم البلاغ</span>
-                  <p className={"font-semibold text-sm mt-1 " + textCls}>#{selectedFlag.id.slice(-6).toUpperCase()}</p>
-                </div>
-                <div className={"rounded-2xl p-4 bg-neutral-50 dark:bg-neutral-800"}>
-                  <span className={"text-xs font-medium " + mutedCls}>المنتج المبلَّغ عنه</span>
-                  <p className={"font-semibold text-sm mt-1 " + textCls}>{selectedFlag.product_id?.slice(-8).toUpperCase() || '—'}</p>
-                  <a href={`/ar/product/${selectedFlag.product_id}`} target="_blank" rel="noreferrer"
-                    className="text-xs text-blue-500 flex items-center gap-1 mt-1">
-                    عرض المنتج <ExternalLink size={10} />
-                  </a>
-                </div>
-                <div className="rounded-2xl p-4 bg-red-50 dark:bg-red-900/20">
-                  <span className="text-xs font-medium text-red-500 dark:text-red-400">سبب البلاغ</span>
-                  <p className="font-semibold text-sm text-red-700 dark:text-red-300 mt-1">
-                    {reasonLabel[selectedFlag.reason] || selectedFlag.reason || 'بدون سبب'}
-                  </p>
-                </div>
-                {selectedFlag.details && (
-                  <div className={"rounded-2xl p-4 bg-neutral-50 dark:bg-neutral-800"}>
-                    <span className={"text-xs font-medium " + mutedCls}>تفاصيل إضافية</span>
-                    <p className={"text-sm mt-1 " + textCls}>{selectedFlag.details}</p>
-                  </div>
-                )}
-                <div className={"rounded-2xl p-4 bg-neutral-50 dark:bg-neutral-800"}>
-                  <span className={"text-xs font-medium " + mutedCls}>تاريخ البلاغ</span>
-                  <p className={"text-sm mt-1 " + textCls}>{new Date(selectedFlag.created_at).toLocaleDateString('ar-MA', { year: 'numeric', month: 'long', day: 'numeric' })}</p>
-                </div>
-              </div>
-              <div className="flex gap-3 mt-5">
-                <button onClick={() => { resolveFlag(selectedFlag.id); setSelectedFlag(null) }}
-                  className="flex-1 py-3 bg-neutral-900 dark:bg-white text-white dark:text-neutral-900 font-semibold rounded-xl hover:opacity-90 text-sm">
-                  معالجة البلاغ ✅
-                </button>
-                <button onClick={() => setSelectedFlag(null)}
-                  className="px-4 py-3 bg-neutral-100 dark:bg-neutral-800 text-neutral-600 dark:text-neutral-400 font-medium rounded-xl text-sm">
-                  إغلاق
-                </button>
-              </div>
             </div>
           </div>
         )}

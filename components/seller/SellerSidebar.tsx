@@ -1,7 +1,7 @@
 'use client'
 import { useState } from 'react'
-
-import { Link, usePathname, useRouter } from '@/lib/i18n/navigation'
+import { usePathname } from 'next/navigation'
+import Link from 'next/link'
 import Image from 'next/image'
 import {
   LayoutDashboard, Package, ShoppingBag, MessageCircle,
@@ -9,7 +9,7 @@ import {
   PlusCircle, Bell, ChevronRight, Star
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
-
+import { useRouter } from 'next/navigation'
 
 interface Profile {
   full_name: string | null
@@ -22,7 +22,7 @@ interface Profile {
 const NAV = [
   { href: '/seller/dashboard', icon: LayoutDashboard, label: 'لوحة التحكم' },
   { href: '/seller/products', icon: Package, label: 'المنتجات' },
-  { href: '/seller/new-product', icon: PlusCircle, label: 'إضافة منتج' },
+  { href: '/seller/products/new', icon: PlusCircle, label: 'إضافة منتج' },
   { href: '/seller/orders', icon: ShoppingBag, label: 'الطلبات' },
   { href: '/seller/analytics', icon: BarChart3, label: 'الإحصائيات' },
   { href: '/seller/messages', icon: MessageCircle, label: 'الرسائل' },
@@ -47,9 +47,9 @@ export function SellerSidebar({ profile }: { profile: Profile }) {
   const SidebarContent = () => (
     <div className="flex flex-col h-full">
       {/* Profile */}
-      <div className="p-5 border-b border-neutral-100">
+      <div className="p-5 border-b border-neutral-100 dark:border-neutral-800">
         <div className="flex items-center gap-3">
-          <div className="w-11 h-11 rounded-xl bg-neutral-100 overflow-hidden shrink-0">
+          <div className="w-11 h-11 rounded-xl bg-neutral-100 dark:bg-neutral-800 overflow-hidden shrink-0">
             {profile.store_image ? (
               <Image src={profile.store_image} alt="" width={44} height={44} className="object-cover w-full h-full" />
             ) : (
@@ -59,10 +59,10 @@ export function SellerSidebar({ profile }: { profile: Profile }) {
             )}
           </div>
           <div className="min-w-0">
-            <p className="font-semibold text-neutral-900 text-sm truncate">
+            <p className="font-semibold text-neutral-900 dark:text-white text-sm truncate">
               {profile.store_name || profile.full_name || 'متجري'}
             </p>
-            <p className="text-xs text-brand-600 font-medium mt-0.5">
+            <p className="text-xs text-green-600 dark:text-green-400 font-medium mt-0.5">
               {profile.wallet_balance?.toLocaleString() ?? 0} د.م.
             </p>
           </div>
@@ -74,16 +74,10 @@ export function SellerSidebar({ profile }: { profile: Profile }) {
         {NAV.map(({ href, icon: Icon, label }) => {
           const active = pathname === href || pathname.startsWith(href + '/')
           return (
-            <Link
-              key={href}
-              href={href}
-              onClick={() => setOpen(false)}
+            <Link key={href} href={href} onClick={() => setOpen(false)}
               className={`flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all text-sm font-medium ${
-                active
-                  ? 'bg-neutral-900 text-white'
-                  : 'text-neutral-600 hover:bg-neutral-100 hover:text-neutral-900'
-              }`}
-            >
+                active ? 'bg-neutral-900 dark:bg-white text-white dark:text-neutral-900' : 'text-neutral-600 dark:text-neutral-400 hover:bg-neutral-100 dark:hover:bg-neutral-800 hover:text-neutral-900 dark:hover:text-white'
+              }`}>
               <Icon size={17} strokeWidth={active ? 2.5 : 2} />
               <span className="flex-1">{label}</span>
               {active && <ChevronRight size={14} className="opacity-60" />}
@@ -93,11 +87,9 @@ export function SellerSidebar({ profile }: { profile: Profile }) {
       </nav>
 
       {/* Logout */}
-      <div className="p-3 border-t border-neutral-100">
-        <button
-          onClick={handleLogout}
-          className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-red-500 hover:bg-red-50 w-full transition-colors"
-        >
+      <div className="p-3 border-t border-neutral-100 dark:border-neutral-800">
+        <button onClick={handleLogout}
+          className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 w-full transition-colors">
           <LogOut size={17} />
           تسجيل الخروج
         </button>
@@ -108,28 +100,23 @@ export function SellerSidebar({ profile }: { profile: Profile }) {
   return (
     <>
       {/* Desktop sidebar */}
-      <aside className="hidden lg:flex fixed inset-y-0 start-0 w-64 bg-white border-e border-neutral-100 flex-col z-40">
-        {/* Logo */}
-        <div className="flex items-center gap-2 px-5 py-4 border-b border-neutral-100">
-          <div className="w-7 h-7 bg-neutral-900 rounded-lg flex items-center justify-center">
-            <span className="text-white font-display font-bold text-xs">W</span>
-          </div>
-          <span className="font-display font-bold text-neutral-900">Wibya</span>
+      <aside className="hidden lg:flex fixed inset-y-0 start-0 w-64 bg-white dark:bg-neutral-900 border-e border-neutral-100 dark:border-neutral-800 flex-col z-40">
+        <div className="flex items-center gap-2.5 px-5 py-4 border-b border-neutral-100 dark:border-neutral-800">
+          <Image src="/logo.png" alt="Wibya" width={30} height={30} className="object-contain" />
+          <span className="font-bold text-neutral-900 dark:text-white">Wibya</span>
           <span className="text-xs text-neutral-400 font-medium ms-auto">بائع</span>
         </div>
         <SidebarContent />
       </aside>
 
       {/* Mobile top bar */}
-      <div className="lg:hidden fixed top-0 inset-x-0 z-50 flex items-center justify-between px-4 h-14 bg-white border-b border-neutral-100">
-        <button onClick={() => setOpen(true)} className="p-2 rounded-xl hover:bg-neutral-100">
-          <Menu size={20} />
+      <div className="lg:hidden fixed top-0 inset-x-0 z-50 flex items-center justify-between px-4 h-14 bg-white dark:bg-neutral-900 border-b border-neutral-100 dark:border-neutral-800">
+        <button onClick={() => setOpen(true)} className="p-2 rounded-xl hover:bg-neutral-100 dark:hover:bg-neutral-800">
+          <Menu size={20} className="text-neutral-600 dark:text-neutral-400" />
         </button>
         <div className="flex items-center gap-2">
-          <div className="w-6 h-6 bg-neutral-900 rounded-lg flex items-center justify-center">
-            <span className="text-white font-display font-bold text-[10px]">W</span>
-          </div>
-          <span className="font-display font-bold text-sm text-neutral-900">لوحة البائع</span>
+          <Image src="/logo.png" alt="Wibya" width={26} height={26} className="object-contain" />
+          <span className="font-bold text-sm text-neutral-900 dark:text-white">لوحة البائع</span>
         </div>
         <div className="w-10" />
       </div>
@@ -138,16 +125,14 @@ export function SellerSidebar({ profile }: { profile: Profile }) {
       {open && (
         <div className="lg:hidden fixed inset-0 z-50 flex">
           <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => setOpen(false)} />
-          <aside className="relative w-72 bg-white h-full flex flex-col shadow-2xl">
-            <div className="flex items-center justify-between px-5 py-4 border-b border-neutral-100">
-              <div className="flex items-center gap-2">
-                <div className="w-7 h-7 bg-neutral-900 rounded-lg flex items-center justify-center">
-                  <span className="text-white font-display font-bold text-xs">W</span>
-                </div>
-                <span className="font-display font-bold text-neutral-900">Wibya</span>
+          <aside className="relative w-72 bg-white dark:bg-neutral-900 h-full flex flex-col shadow-2xl">
+            <div className="flex items-center justify-between px-5 py-4 border-b border-neutral-100 dark:border-neutral-800">
+              <div className="flex items-center gap-2.5">
+                <Image src="/logo.png" alt="Wibya" width={28} height={28} className="object-contain" />
+                <span className="font-bold text-neutral-900 dark:text-white">Wibya</span>
               </div>
-              <button onClick={() => setOpen(false)} className="p-2 rounded-xl hover:bg-neutral-100">
-                <X size={18} />
+              <button onClick={() => setOpen(false)} className="p-2 rounded-xl hover:bg-neutral-100 dark:hover:bg-neutral-800">
+                <X size={18} className="text-neutral-500 dark:text-neutral-400" />
               </button>
             </div>
             <SidebarContent />
