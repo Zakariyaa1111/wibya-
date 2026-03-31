@@ -9,6 +9,24 @@ import toast from 'react-hot-toast'
 
 const CITIES = ['الدار البيضاء','الرباط','فاس','مراكش','أكادير','طنجة','مكناس','وجدة','تطوان','سلا','أخرى']
 
+// ✅ خارج الـ component باش ما يتعاد بناؤه في كل render
+function Field({ label, error, children }: { label: string; error?: string; children: React.ReactNode }) {
+  return (
+    <div>
+      <label className="text-xs font-medium text-neutral-500 dark:text-neutral-400 mb-1 block">
+        {label} <span className="text-red-500">*</span>
+      </label>
+      {children}
+      {error && (
+        <div className="flex items-center gap-1 mt-1">
+          <AlertCircle size={11} className="text-red-500 shrink-0" />
+          <p className="text-xs text-red-500">{error}</p>
+        </div>
+      )}
+    </div>
+  )
+}
+
 function CheckoutContent() {
   const searchParams = useSearchParams()
   const router = useRouter()
@@ -77,13 +95,13 @@ function CheckoutContent() {
       status: 'pending',
       payment_method: 'cod',
       shipping_address: `${address.trim()}، ${city}`,
-      items: JSON.stringify([{
+      items: [{
         name: product.name,
         quantity: 1,
         price: product.price,
         total: product.price,
         product_id: product.id,
-      }]),
+      }],
     }
 
     const { data, error } = await supabase
@@ -136,21 +154,6 @@ function CheckoutContent() {
           طلباتي
         </button>
       </div>
-    </div>
-  )
-
-  const Field = ({ label, error, children }: { label: string; error?: string; children: React.ReactNode }) => (
-    <div>
-      <label className="text-xs font-medium text-neutral-500 dark:text-neutral-400 mb-1 block">
-        {label} <span className="text-red-500">*</span>
-      </label>
-      {children}
-      {error && (
-        <div className="flex items-center gap-1 mt-1">
-          <AlertCircle size={11} className="text-red-500 shrink-0" />
-          <p className="text-xs text-red-500">{error}</p>
-        </div>
-      )}
     </div>
   )
 
