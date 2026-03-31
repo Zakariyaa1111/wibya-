@@ -4,37 +4,34 @@ import { useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter } from '@/lib/i18n/navigation'
 import Image from 'next/image'
-import { ArrowRight, ShieldCheck, Package, Check, Truck, CreditCard, AlertCircle } from 'lucide-react'
+import { ArrowRight, ShieldCheck, Package, Check, Truck, CreditCard } from 'lucide-react'
 import toast from 'react-hot-toast'
 
 const CITIES = ['الدار البيضاء','الرباط','فاس','مراكش','أكادير','طنجة','مكناس','وجدة','تطوان','سلا','أخرى']
 
-// ✅ خارج الـ component باش ما يتعاد بناؤه في كل render
-function Field({ label, error, children }: { label: string; error?: string; children: React.ReactNode }) {
+// ✅ خارج الـ component
+function Field({ label, required, error, children }: {
+  label: string; required?: boolean; error?: string; children: React.ReactNode
+}) {
   return (
-    <div>
-      <label className="text-xs font-medium text-neutral-500 dark:text-neutral-400 mb-1 block">
-        {label} <span className="text-red-500">*</span>
+    <div className="flex flex-col gap-1">
+      <label className="text-xs font-medium text-neutral-600 dark:text-neutral-400">
+        {label}{required && <span className="text-red-500 ms-1">*</span>}
       </label>
       {children}
-      {error && (
-        <div className="flex items-center gap-1 mt-1">
-          <AlertCircle size={11} className="text-red-500 shrink-0" />
-          <p className="text-xs text-red-500">{error}</p>
-        </div>
-      )}
+      {error && <p className="text-xs text-red-500">{error}</p>}
     </div>
   )
 }
 
-function CheckoutContent() {
+function CheckoutForm() {
   const searchParams = useSearchParams()
   const router = useRouter()
   const productId = searchParams.get('product')
 
   const [product, setProduct] = useState<any>(null)
   const [seller, setSeller] = useState<any>(null)
-  const [userId, setUserId] = useState<string | null>(null)
+  const [userId, setUserId] = useState<string>('')
   const [loading, setLoading] = useState(true)
   const [ordering, setOrdering] = useState(false)
   const [ordered, setOrdered] = useState(false)
@@ -46,48 +43,40 @@ function CheckoutContent() {
   const [errors, setErrors] = useState<Record<string, string>>({})
 
   useEffect(() => {
-    async function load() {
-      const supabase = createClient()
-      const { data: { user } } = await supabase.auth.getUser()
+    if (!productId) { router.push('/'); return }
+    const supabase = createClient()
+    supabase.auth.getUser().then(({ data: { user } }) => {
       if (!user) { router.push('/auth/login'); return }
       setUserId(user.id)
-      if (!productId) { router.push('/'); return }
-
-      const { data: p } = await supabase
-        .from('products')
-        .select('*, profiles(id, store_name, store_image, verified)')
-        .eq('id', productId)
-        .single()
-      if (!p) { router.push('/'); return }
-      setProduct(p)
-      setSeller(p.profiles)
-
-      const { data: profile } = await supabase.from('profiles').select('phone, city').eq('id', user.id).single()
-      if (profile?.phone) setPhone(profile.phone)
-      if (profile?.city) setCity(profile.city)
-      setLoading(false)
-    }
-    load()
+      Promise.all([
+        supabase.from('products').select('id, name, price, images, seller_id, profiles(id, store_name, store_image)').eq('id', productId).single(),
+        supabase.from('profiles').select('phone, city').eq('id', user.id).single(),
+      ]).then(([{ data: p }, { data: profile }]) => {
+        if (!p) { router.push('/'); return }
+        setProduct(p)
+        setSeller((p as any).profiles)
+        if (profile?.phone) setPhone(profile.phone)
+        if (profile?.city) setCity(profile.city)
+        setLoading(false)
+      })
+    })
   }, [productId])
 
   function validate() {
-    const errs: Record<string, string> = {}
-    if (!address.trim()) errs.address = 'يجب إدخال العنوان الكامل'
-    if (!city) errs.city = 'يجب اختيار المدينة'
-    if (!phone.trim()) errs.phone = 'يجب إدخال رقم الهاتف'
-    if (phone.trim() && !/^(\+212|0)[0-9]{9}$/.test(phone.replace(/\s/g, ''))) errs.phone = 'رقم الهاتف غير صحيح'
-    setErrors(errs)
-    return Object.keys(errs).length === 0
+    const e: Record<string, string> = {}
+    if (!address.trim()) e.address = 'العنوان مطلوب'
+    if (!city) e.city = 'المدينة مطلوبة'
+    if (!phone.trim()) e.phone = 'الهاتف مطلوب'
+    setErrors(e)
+    return !Object.keys(e).length
   }
 
-  async function handleOrder() {
-    if (!validate()) return
-    if (!userId || !product) return
-
+  async function submit() {
+    if (!validate() || !userId || !product) return
     setOrdering(true)
-    const supabase = createClient()
 
-    const orderData = {
+    const supabase = createClient()
+    const { error } = await supabase.from('orders').insert({
       buyer_id: userId,
       seller_id: product.seller_id,
       total: product.price,
@@ -95,33 +84,19 @@ function CheckoutContent() {
       status: 'pending',
       payment_method: 'cod',
       shipping_address: `${address.trim()}، ${city}`,
-      items: [{
-        name: product.name,
-        quantity: 1,
-        price: product.price,
-        total: product.price,
-        product_id: product.id,
-      }],
-    }
-
-    const { data, error } = await supabase
-      .from('orders')
-      .insert(orderData)
-      .select()
-      .single()
+      items: [{ name: product.name, quantity: 1, price: product.price, total: product.price }],
+    })
 
     if (error) {
-      console.error('Order error:', error)
-      toast.error('حدث خطأ: ' + error.message)
+      toast.error(error.message)
       setOrdering(false)
       return
     }
 
-    // إشعار للبائع
     await supabase.from('notifications').insert({
       user_id: product.seller_id,
       title: '🛍️ طلب جديد!',
-      body: `طلب جديد على "${product.name}" · ${product.price.toLocaleString()} د.م.`,
+      body: `"${product.name}" — ${product.price.toLocaleString()} د.م. من ${city}`,
       type: 'order',
       is_read: false,
     })
@@ -131,28 +106,22 @@ function CheckoutContent() {
   }
 
   if (loading) return (
-    <div className="min-h-screen flex items-center justify-center bg-neutral-50 dark:bg-neutral-950">
+    <div className="min-h-screen flex items-center justify-center">
       <div className="w-6 h-6 border-2 border-neutral-200 border-t-neutral-900 rounded-full animate-spin" />
     </div>
   )
 
   if (ordered) return (
-    <div className="min-h-screen bg-neutral-50 dark:bg-neutral-950 flex flex-col items-center justify-center px-6 text-center">
-      <div className="w-20 h-20 bg-green-100 dark:bg-green-900/30 rounded-full flex items-center justify-center mb-6">
-        <Check size={40} className="text-green-600 dark:text-green-400" />
+    <div className="min-h-screen flex flex-col items-center justify-center px-6 text-center bg-neutral-50 dark:bg-neutral-950">
+      <div className="w-20 h-20 bg-green-100 dark:bg-green-900/30 rounded-full flex items-center justify-center mb-5">
+        <Check size={36} className="text-green-600" />
       </div>
-      <h1 className="text-2xl font-bold text-neutral-900 dark:text-white mb-2">تم تأكيد الطلب! ✅</h1>
-      <p className="text-neutral-400 dark:text-neutral-500 text-sm mb-2">سيتواصل معك البائع قريباً لتأكيد التسليم</p>
-      <p className="text-neutral-300 dark:text-neutral-600 text-xs mb-8">الدفع عند الاستلام · حماية Wibya</p>
+      <h1 className="text-2xl font-bold text-neutral-900 dark:text-white mb-2">تم الطلب ✅</h1>
+      <p className="text-neutral-400 text-sm mb-1">سيتواصل معك البائع قريباً</p>
+      <p className="text-neutral-300 text-xs mb-8">الدفع عند الاستلام · حماية Wibya</p>
       <div className="flex gap-3 w-full max-w-xs">
-        <button onClick={() => router.push('/')}
-          className="flex-1 py-3 bg-neutral-900 dark:bg-white text-white dark:text-neutral-900 font-semibold rounded-2xl text-sm">
-          الرئيسية
-        </button>
-        <button onClick={() => router.push('/orders')}
-          className="flex-1 py-3 border border-neutral-200 dark:border-neutral-700 text-neutral-700 dark:text-neutral-300 font-medium rounded-2xl text-sm">
-          طلباتي
-        </button>
+        <button onClick={() => router.push('/')} className="flex-1 py-3 bg-neutral-900 dark:bg-white text-white dark:text-neutral-900 font-semibold rounded-2xl text-sm">الرئيسية</button>
+        <button onClick={() => router.push('/orders')} className="flex-1 py-3 border border-neutral-200 dark:border-neutral-700 text-neutral-700 dark:text-neutral-300 rounded-2xl text-sm">طلباتي</button>
       </div>
     </div>
   )
@@ -164,113 +133,111 @@ function CheckoutContent() {
           <ArrowRight size={18} className="text-neutral-700 dark:text-neutral-300 rotate-180" />
         </button>
         <div className="flex items-center gap-2">
-          <Image src="/logo.png" alt="Wibya" width={28} height={28} className="object-contain" />
+          <Image src="/logo.png" alt="Wibya" width={26} height={26} className="object-contain" />
           <h1 className="font-bold text-neutral-900 dark:text-white">إتمام الطلب</h1>
         </div>
       </header>
 
-      <div className="px-4 py-5 pb-36 max-w-lg mx-auto space-y-4">
+      <div className="px-4 py-4 pb-36 max-w-lg mx-auto space-y-4">
 
-        {/* Product summary */}
+        {/* Product */}
         <div className="bg-white dark:bg-neutral-900 rounded-2xl border border-neutral-100 dark:border-neutral-800 p-4 flex items-center gap-3">
-          <div className="w-16 h-16 rounded-xl bg-neutral-100 dark:bg-neutral-800 overflow-hidden shrink-0">
+          <div className="w-14 h-14 rounded-xl bg-neutral-100 dark:bg-neutral-800 overflow-hidden shrink-0">
             {product?.images?.[0]
-              ? <Image src={product.images[0]} alt={product.name} width={64} height={64} className="object-cover w-full h-full" />
-              : <div className="w-full h-full flex items-center justify-center"><Package size={20} className="text-neutral-300" /></div>
+              ? <Image src={product.images[0]} alt={product.name} width={56} height={56} className="object-cover w-full h-full" />
+              : <Package size={18} className="text-neutral-300 m-auto mt-4" />
             }
           </div>
           <div className="flex-1 min-w-0">
             <p className="font-semibold text-sm text-neutral-900 dark:text-white truncate">{product?.name}</p>
-            {seller && <p className="text-xs text-neutral-400 mt-0.5">{seller.store_name || 'متجر'}</p>}
+            <p className="text-xs text-neutral-400">{(seller as any)?.store_name || 'متجر'}</p>
           </div>
-          <div className="text-end shrink-0">
-            <p className="font-bold text-lg text-neutral-900 dark:text-white">{product?.price?.toLocaleString()}</p>
-            <p className="text-xs text-neutral-400">د.م.</p>
-          </div>
+          <p className="font-bold text-neutral-900 dark:text-white shrink-0">{product?.price?.toLocaleString()} <span className="text-xs font-normal text-neutral-400">د.م.</span></p>
         </div>
 
-        {/* Shipping info */}
+        {/* Shipping */}
         <div className="bg-white dark:bg-neutral-900 rounded-2xl border border-neutral-100 dark:border-neutral-800 p-4 space-y-4">
           <div className="flex items-center gap-2">
-            <Truck size={16} className="text-neutral-500" />
+            <Truck size={15} className="text-neutral-500" />
             <h2 className="font-semibold text-sm text-neutral-900 dark:text-white">معلومات التسليم</h2>
           </div>
 
-          <Field label="العنوان الكامل" error={errors.address}>
+          <Field label="العنوان الكامل" required error={errors.address}>
             <input
+              type="text"
               value={address}
-              onChange={e => { setAddress(e.target.value); setErrors(p => ({ ...p, address: '' })) }}
-              className={`input ${errors.address ? 'border-red-400 focus:border-red-400' : ''}`}
+              onChange={e => { setAddress(e.target.value); setErrors(prev => ({ ...prev, address: '' })) }}
+              className={`w-full px-4 py-3 rounded-2xl text-sm bg-neutral-50 dark:bg-neutral-800 border text-neutral-900 dark:text-white placeholder-neutral-400 outline-none transition-colors ${errors.address ? 'border-red-400' : 'border-neutral-200 dark:border-neutral-700 focus:border-neutral-400 dark:focus:border-neutral-500'}`}
               placeholder="الحي، الشارع، رقم البناية..."
             />
           </Field>
 
-          <Field label="المدينة" error={errors.city}>
+          <Field label="المدينة" required error={errors.city}>
             <select
               value={city}
-              onChange={e => { setCity(e.target.value); setErrors(p => ({ ...p, city: '' })) }}
-              className={`input ${errors.city ? 'border-red-400 focus:border-red-400' : ''}`}
+              onChange={e => { setCity(e.target.value); setErrors(prev => ({ ...prev, city: '' })) }}
+              className={`w-full px-4 py-3 rounded-2xl text-sm bg-neutral-50 dark:bg-neutral-800 border text-neutral-900 dark:text-white outline-none transition-colors ${errors.city ? 'border-red-400' : 'border-neutral-200 dark:border-neutral-700 focus:border-neutral-400 dark:focus:border-neutral-500'}`}
             >
               <option value="">اختر المدينة...</option>
               {CITIES.map(c => <option key={c} value={c}>{c}</option>)}
             </select>
           </Field>
 
-          <Field label="رقم الهاتف" error={errors.phone}>
+          <Field label="رقم الهاتف" required error={errors.phone}>
             <input
+              type="tel"
               value={phone}
-              onChange={e => { setPhone(e.target.value); setErrors(p => ({ ...p, phone: '' })) }}
-              className={`input ${errors.phone ? 'border-red-400 focus:border-red-400' : ''}`}
+              onChange={e => { setPhone(e.target.value); setErrors(prev => ({ ...prev, phone: '' })) }}
+              className={`w-full px-4 py-3 rounded-2xl text-sm bg-neutral-50 dark:bg-neutral-800 border text-neutral-900 dark:text-white placeholder-neutral-400 outline-none transition-colors ${errors.phone ? 'border-red-400' : 'border-neutral-200 dark:border-neutral-700 focus:border-neutral-400 dark:focus:border-neutral-500'}`}
               placeholder="+212 6XX-XXXXXX"
               dir="ltr"
             />
           </Field>
 
-          <div>
-            <label className="text-xs font-medium text-neutral-500 dark:text-neutral-400 mb-1 block">ملاحظات للبائع</label>
+          <Field label="ملاحظات (اختياري)">
             <textarea
               value={notes}
               onChange={e => setNotes(e.target.value)}
-              className="input resize-none"
+              className="w-full px-4 py-3 rounded-2xl text-sm bg-neutral-50 dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 text-neutral-900 dark:text-white placeholder-neutral-400 outline-none resize-none focus:border-neutral-400 dark:focus:border-neutral-500 transition-colors"
               rows={2}
-              placeholder="أي تفاصيل إضافية للتسليم..."
+              placeholder="أي تفاصيل للبائع..."
             />
-          </div>
+          </Field>
         </div>
 
         {/* Payment */}
         <div className="bg-white dark:bg-neutral-900 rounded-2xl border border-neutral-100 dark:border-neutral-800 p-4">
           <div className="flex items-center gap-2 mb-3">
-            <CreditCard size={16} className="text-neutral-500" />
+            <CreditCard size={15} className="text-neutral-500" />
             <h2 className="font-semibold text-sm text-neutral-900 dark:text-white">طريقة الدفع</h2>
           </div>
-          <div className="flex items-center gap-3 bg-neutral-50 dark:bg-neutral-800 rounded-xl p-3 border-2 border-neutral-900 dark:border-white">
+          <div className="flex items-center gap-3 p-3 rounded-xl border-2 border-neutral-900 dark:border-white bg-neutral-50 dark:bg-neutral-800">
             <div className="w-8 h-8 bg-neutral-900 dark:bg-white rounded-lg flex items-center justify-center shrink-0">
-              <Package size={16} className="text-white dark:text-neutral-900" />
+              <Package size={14} className="text-white dark:text-neutral-900" />
             </div>
             <div>
               <p className="text-sm font-semibold text-neutral-900 dark:text-white">الدفع عند الاستلام</p>
-              <p className="text-xs text-neutral-400 dark:text-neutral-500">Cash on Delivery (COD)</p>
+              <p className="text-xs text-neutral-400">Cash on Delivery</p>
             </div>
-            <div className="ms-auto w-5 h-5 bg-neutral-900 dark:bg-white rounded-full flex items-center justify-center shrink-0">
-              <Check size={12} className="text-white dark:text-neutral-900" />
+            <div className="ms-auto w-5 h-5 rounded-full bg-neutral-900 dark:bg-white flex items-center justify-center">
+              <Check size={11} className="text-white dark:text-neutral-900" />
             </div>
           </div>
         </div>
 
         {/* Summary */}
         <div className="bg-white dark:bg-neutral-900 rounded-2xl border border-neutral-100 dark:border-neutral-800 p-4">
-          <h2 className="font-semibold text-sm text-neutral-900 dark:text-white mb-3">ملخص الطلب</h2>
-          <div className="space-y-2">
-            <div className="flex justify-between text-sm">
-              <span className="text-neutral-400 dark:text-neutral-500">سعر المنتج</span>
+          <h2 className="font-semibold text-sm text-neutral-900 dark:text-white mb-3">الملخص</h2>
+          <div className="space-y-2 text-sm">
+            <div className="flex justify-between">
+              <span className="text-neutral-400">السعر</span>
               <span className="text-neutral-900 dark:text-white">{product?.price?.toLocaleString()} د.م.</span>
             </div>
-            <div className="flex justify-between text-sm">
-              <span className="text-neutral-400 dark:text-neutral-500">التوصيل</span>
-              <span className="text-green-600 dark:text-green-400">مجاناً</span>
+            <div className="flex justify-between">
+              <span className="text-neutral-400">التوصيل</span>
+              <span className="text-green-600">مجاناً</span>
             </div>
-            <div className="flex justify-between text-sm font-bold border-t border-neutral-100 dark:border-neutral-800 pt-2 mt-2">
+            <div className="flex justify-between font-bold pt-2 border-t border-neutral-100 dark:border-neutral-800">
               <span className="text-neutral-900 dark:text-white">المجموع</span>
               <span className="text-neutral-900 dark:text-white">{product?.price?.toLocaleString()} د.م.</span>
             </div>
@@ -279,29 +246,21 @@ function CheckoutContent() {
 
         {/* Protection */}
         <div className="flex items-center gap-3 bg-green-50 dark:bg-green-900/20 border border-green-100 dark:border-green-800 rounded-2xl p-3">
-          <ShieldCheck size={18} className="text-green-600 dark:text-green-400 shrink-0" />
-          <div>
-            <p className="text-xs font-semibold text-green-800 dark:text-green-300">حماية Wibya مضمونة</p>
-            <p className="text-xs text-green-600 dark:text-green-500">ضمان استرجاع في حال وجود عيب · فحص خلال 24 ساعة</p>
-          </div>
+          <ShieldCheck size={16} className="text-green-600 dark:text-green-400 shrink-0" />
+          <p className="text-xs text-green-700 dark:text-green-300">حماية Wibya — ضمان الاسترجاع خلال 7 أيام في حال وجود عيب</p>
         </div>
       </div>
 
       {/* CTA */}
       <div className="fixed bottom-0 start-0 end-0 bg-white/95 dark:bg-neutral-950/95 backdrop-blur-xl border-t border-neutral-100 dark:border-neutral-800 p-4">
-        <button
-          onClick={handleOrder}
-          disabled={ordering}
-          className="w-full py-4 bg-neutral-900 dark:bg-white text-white dark:text-neutral-900 font-bold rounded-2xl text-base disabled:opacity-50 flex items-center justify-center gap-2 active:scale-[0.98] transition-transform"
-        >
+        <button onClick={submit} disabled={ordering}
+          className="w-full py-4 bg-neutral-900 dark:bg-white text-white dark:text-neutral-900 font-bold rounded-2xl disabled:opacity-50 flex items-center justify-center gap-2">
           {ordering
             ? <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-            : <><ShieldCheck size={18} /> تأكيد الطلب — {product?.price?.toLocaleString()} د.م.</>
+            : <><ShieldCheck size={17} /> تأكيد الطلب — {product?.price?.toLocaleString()} د.م.</>
           }
         </button>
-        <p className="text-center text-xs text-neutral-400 dark:text-neutral-500 mt-2">
-          جميع الحقول المحددة بـ <span className="text-red-500">*</span> إلزامية
-        </p>
+        <p className="text-center text-xs text-neutral-400 mt-1.5">الحقول المعلمة بـ * إلزامية</p>
       </div>
     </div>
   )
@@ -309,12 +268,8 @@ function CheckoutContent() {
 
 export default function CheckoutPage() {
   return (
-    <Suspense fallback={
-      <div className="min-h-screen flex items-center justify-center bg-neutral-50 dark:bg-neutral-950">
-        <div className="w-6 h-6 border-2 border-neutral-200 border-t-neutral-900 rounded-full animate-spin" />
-      </div>
-    }>
-      <CheckoutContent />
+    <Suspense fallback={<div className="min-h-screen flex items-center justify-center"><div className="w-6 h-6 border-2 border-neutral-200 border-t-neutral-900 rounded-full animate-spin" /></div>}>
+      <CheckoutForm />
     </Suspense>
   )
 }
