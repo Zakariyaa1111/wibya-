@@ -10,6 +10,10 @@ import {
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
+import { Crown } from 'lucide-react'  // في الـ imports
+
+{ href: '/seller/verification', icon: Shield, label: 'التوثيق' },
+{ href: '/seller/premium', icon: Crown, label: 'Premium ⭐' },
 
 interface Profile {
   full_name: string | null
