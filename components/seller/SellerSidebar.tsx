@@ -6,14 +6,10 @@ import Image from 'next/image'
 import {
   LayoutDashboard, Package, ShoppingBag, MessageCircle,
   Wallet, Settings, LogOut, Menu, X, BarChart3,
-  PlusCircle, Bell, ChevronRight, Star
+  PlusCircle, Bell, ChevronRight, Star, Shield, Crown
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
-import { Crown } from 'lucide-react'  // في الـ imports
-
-{ href: '/seller/verification', icon: Shield, label: 'التوثيق' },
-{ href: '/seller/premium', icon: Crown, label: 'Premium ⭐' },
 
 interface Profile {
   full_name: string | null
@@ -32,6 +28,8 @@ const NAV = [
   { href: '/seller/messages', icon: MessageCircle, label: 'الرسائل' },
   { href: '/seller/wallet', icon: Wallet, label: 'المحفظة' },
   { href: '/seller/ratings', icon: Star, label: 'التقييمات' },
+  { href: '/seller/verification', icon: Shield, label: 'التوثيق' },
+  { href: '/seller/premium', icon: Crown, label: 'Premium ⭐' },
   { href: '/seller/notifications', icon: Bell, label: 'الإشعارات' },
   { href: '/seller/settings', icon: Settings, label: 'الإعدادات' },
 ]
@@ -50,7 +48,6 @@ export function SellerSidebar({ profile }: { profile: Profile }) {
 
   const SidebarContent = () => (
     <div className="flex flex-col h-full">
-      {/* Profile */}
       <div className="p-5 border-b border-neutral-100 dark:border-neutral-800">
         <div className="flex items-center gap-3">
           <div className="w-11 h-11 rounded-xl bg-neutral-100 dark:bg-neutral-800 overflow-hidden shrink-0">
@@ -73,14 +70,15 @@ export function SellerSidebar({ profile }: { profile: Profile }) {
         </div>
       </div>
 
-      {/* Nav */}
       <nav className="flex-1 p-3 space-y-0.5 overflow-y-auto">
         {NAV.map(({ href, icon: Icon, label }) => {
           const active = pathname === href || pathname.startsWith(href + '/')
           return (
             <Link key={href} href={href} onClick={() => setOpen(false)}
               className={`flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all text-sm font-medium ${
-                active ? 'bg-neutral-900 dark:bg-white text-white dark:text-neutral-900' : 'text-neutral-600 dark:text-neutral-400 hover:bg-neutral-100 dark:hover:bg-neutral-800 hover:text-neutral-900 dark:hover:text-white'
+                active
+                  ? 'bg-neutral-900 dark:bg-white text-white dark:text-neutral-900'
+                  : 'text-neutral-600 dark:text-neutral-400 hover:bg-neutral-100 dark:hover:bg-neutral-800 hover:text-neutral-900 dark:hover:text-white'
               }`}>
               <Icon size={17} strokeWidth={active ? 2.5 : 2} />
               <span className="flex-1">{label}</span>
@@ -90,7 +88,6 @@ export function SellerSidebar({ profile }: { profile: Profile }) {
         })}
       </nav>
 
-      {/* Logout */}
       <div className="p-3 border-t border-neutral-100 dark:border-neutral-800">
         <button onClick={handleLogout}
           className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 w-full transition-colors">
@@ -103,7 +100,6 @@ export function SellerSidebar({ profile }: { profile: Profile }) {
 
   return (
     <>
-      {/* Desktop sidebar */}
       <aside className="hidden lg:flex fixed inset-y-0 start-0 w-64 bg-white dark:bg-neutral-900 border-e border-neutral-100 dark:border-neutral-800 flex-col z-40">
         <div className="flex items-center gap-2.5 px-5 py-4 border-b border-neutral-100 dark:border-neutral-800">
           <Image src="/logo.png" alt="Wibya" width={30} height={30} className="object-contain" />
@@ -113,7 +109,6 @@ export function SellerSidebar({ profile }: { profile: Profile }) {
         <SidebarContent />
       </aside>
 
-      {/* Mobile top bar */}
       <div className="lg:hidden fixed top-0 inset-x-0 z-50 flex items-center justify-between px-4 h-14 bg-white dark:bg-neutral-900 border-b border-neutral-100 dark:border-neutral-800">
         <button onClick={() => setOpen(true)} className="p-2 rounded-xl hover:bg-neutral-100 dark:hover:bg-neutral-800">
           <Menu size={20} className="text-neutral-600 dark:text-neutral-400" />
@@ -125,7 +120,6 @@ export function SellerSidebar({ profile }: { profile: Profile }) {
         <div className="w-10" />
       </div>
 
-      {/* Mobile drawer */}
       {open && (
         <div className="lg:hidden fixed inset-0 z-50 flex">
           <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => setOpen(false)} />
