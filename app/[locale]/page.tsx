@@ -13,17 +13,15 @@ async function FeedContent() {
   const supabase = await createClient()
 
   // جلب المنتجات
-  const { data: products } = await supabase
-    .from('products')
-    .select(`
-      *,
-      profiles(store_name, store_image, verified)
-    `)
-    .eq('status', 'active')
-    .order('created_at', { ascending: false })
-    .limit(10)
-    .returns<any[]>()
+  const { data: products, error } = await supabase
+  .from('products')
+  .select(`*, profiles(store_name, store_image, verified)`)
+  .eq('status', 'active')
+  .order('created_at', { ascending: false })
+  .limit(10)
+  .returns<any[]>()
 
+console.log('products:', products?.length, 'error:', error)
   // جلب الإعلانات
   const { data: ads } = await supabase
     .from('ads')
