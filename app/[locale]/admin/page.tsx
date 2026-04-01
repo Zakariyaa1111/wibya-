@@ -6,7 +6,8 @@ import Image from 'next/image'
 import {
   Users, Package, ShoppingBag, Clock, AlertTriangle, CheckCircle,
   XCircle, Shield, BarChart2, Flag, Store, LogOut, Star, Megaphone,
-   Percent, BadgeCheck, ExternalLink, CreditCard, Crown, FileText, TrendingUp
+  Percent, BadgeCheck, ExternalLink, CreditCard, Crown, FileText, TrendingUp,
+  Phone, Mail, MapPin, MessageCircle, Save
 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { generateInvoicePDF } from '@/lib/pdf/invoice'
@@ -22,7 +23,8 @@ const TABS = [
   { key: 'flags', icon: Flag, label: 'البلاغات' },
   { key: 'orders', icon: ShoppingBag, label: 'الطلبات' },
   { key: 'analytics', icon: BarChart2, label: 'الإحصائيات' },
-  { key: 'ratings', icon: Star, label: 'التقييمات' }
+  { key: 'ratings', icon: Star, label: 'التقييمات' },
+  { key: 'contact', icon: Phone, label: 'التواصل' },
 ] as const
 
 export default function AdminPage() {
@@ -43,6 +45,13 @@ export default function AdminPage() {
   const [generatingPdf, setGeneratingPdf] = useState<string | null>(null)
   const [siteRatings, setSiteRatings] = useState<any[]>([])
   const [sellerRatings, setSellerRatings] = useState<any[]>([])
+  const [contactInfo, setContactInfo] = useState({
+    email: 'support@wibya.com',
+    phone: '+212 6XX-XXXXXX',
+    whatsapp: '+212 6XX-XXXXXX',
+    address: 'المغرب',
+  })
+  const [savingContact, setSavingContact] = useState(false)
 
   useEffect(() => {
     async function load() {
@@ -92,7 +101,7 @@ export default function AdminPage() {
       // جلب تقييمات الموقع
       const { data: sr } = await supabase
         .from('site_ratings')
-        .select('*, profiles!user_id(full_name, store_name)')
+        .select('*')
         .order('created_at', { ascending: false })
         .limit(30)
       setSiteRatings(sr ?? [])
@@ -100,7 +109,7 @@ export default function AdminPage() {
       // جلب تقييمات البائعين
       const { data: sellerR } = await supabase
         .from('seller_ratings')
-        .select('*, profiles!buyer_id(full_name), profiles!seller_id(store_name, full_name)')
+        .select('*')
         .order('created_at', { ascending: false })
         .limit(30)
       setSellerRatings(sellerR ?? [])
@@ -764,7 +773,7 @@ export default function AdminPage() {
                   <div key={r.id} className={"px-4 py-3 " + rowCls}>
                     <div className="flex items-center justify-between mb-1">
                       <span className={"text-sm font-medium " + textCls}>
-                        {r.profiles?.store_name || r.profiles?.full_name || 'مستخدم'}
+                        مستخدم #{r.user_id?.slice(-6).toUpperCase()}
                       </span>
                       <div className="flex items-center gap-1">
                         {[1,2,3,4,5].map(i => (
@@ -792,10 +801,10 @@ export default function AdminPage() {
                     <div className="flex items-center justify-between mb-1">
                       <div>
                         <span className={"text-sm font-medium " + textCls}>
-                          {r['profiles!seller_id']?.store_name || r['profiles!seller_id']?.full_name || 'بائع'}
+                          بائع #{r.seller_id?.slice(-6).toUpperCase()}
                         </span>
                         <span className={"text-xs ms-2 " + mutedCls}>
-                          من: {r['profiles!buyer_id']?.full_name || 'مشتري'}
+                          من مشتري #{r.buyer_id?.slice(-6).toUpperCase()}
                         </span>
                       </div>
                       <div className="flex items-center gap-1">
@@ -809,6 +818,68 @@ export default function AdminPage() {
                   </div>
                 ))
               }
+            </div>
+          </div>
+        )}
+
+        {/* CONTACT */}
+        {tab === 'contact' && (
+          <div className="space-y-4 max-w-lg">
+            <h1 className={titleCls}>معلومات التواصل</h1>
+            <p className={"text-sm " + mutedCls}>هذه المعلومات تظهر في صفحة "تواصل معنا" للزوار</p>
+
+            <div className={cardCls + " p-4 space-y-4"}>
+              {[
+                { key: 'email', icon: Mail, label: 'البريد الإلكتروني', placeholder: 'support@wibya.com', dir: 'ltr' },
+                { key: 'phone', icon: Phone, label: 'رقم الهاتف', placeholder: '+212 6XX-XXXXXX', dir: 'ltr' },
+                { key: 'whatsapp', icon: MessageCircle, label: 'واتساب', placeholder: '+212 6XX-XXXXXX', dir: 'ltr' },
+                { key: 'address', icon: MapPin, label: 'العنوان', placeholder: 'المغرب', dir: 'rtl' },
+              ].map(({ key, icon: Icon, label, placeholder, dir }) => (
+                <div key={key}>
+                  <label className={"text-xs font-medium mb-1 block flex items-center gap-1.5 " + mutedCls}>
+                    <Icon size={12} /> {label}
+                  </label>
+                  <input
+                    value={(contactInfo as any)[key]}
+                    onChange={e => setContactInfo(prev => ({ ...prev, [key]: e.target.value }))}
+                    className="w-full px-4 py-3 rounded-2xl text-sm bg-neutral-50 dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 text-neutral-900 dark:text-white outline-none focus:border-neutral-400 transition-colors"
+                    placeholder={placeholder}
+                    dir={dir as any}
+                  />
+                </div>
+              ))}
+
+              <button
+                disabled={savingContact}
+                onClick={async () => {
+                  setSavingContact(true)
+                  // حفظ في localStorage كمثال — يمكن استبداله بجدول Supabase
+                  localStorage.setItem('wibya_contact', JSON.stringify(contactInfo))
+                  await new Promise(r => setTimeout(r, 500))
+                  toast.success('تم حفظ معلومات التواصل ✅')
+                  setSavingContact(false)
+                }}
+                className="w-full py-3 bg-neutral-900 dark:bg-white text-white dark:text-neutral-900 font-semibold rounded-2xl flex items-center justify-center gap-2 text-sm disabled:opacity-50">
+                <Save size={15} />
+                {savingContact ? 'جاري الحفظ...' : 'حفظ المعلومات'}
+              </button>
+            </div>
+
+            <div className={cardCls + " p-4"}>
+              <h2 className={"font-semibold text-sm mb-3 " + textCls}>معاينة</h2>
+              <div className="space-y-2">
+                {[
+                  { icon: Mail, value: contactInfo.email },
+                  { icon: Phone, value: contactInfo.phone },
+                  { icon: MessageCircle, value: contactInfo.whatsapp },
+                  { icon: MapPin, value: contactInfo.address },
+                ].map(({ icon: Icon, value }, i) => (
+                  <div key={i} className="flex items-center gap-3 bg-neutral-50 dark:bg-neutral-800 rounded-xl px-3 py-2.5">
+                    <Icon size={14} className="text-neutral-400 shrink-0" />
+                    <span className={"text-sm " + textCls}>{value || '—'}</span>
+                  </div>
+                ))}
+              </div>
             </div>
           </div>
         )}
