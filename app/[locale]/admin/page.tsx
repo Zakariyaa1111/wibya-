@@ -6,7 +6,7 @@ import Image from 'next/image'
 import {
   Users, Package, ShoppingBag, Clock, AlertTriangle, CheckCircle,
   XCircle, Shield, BarChart2, Flag, Store, LogOut, Star, Megaphone,
-  Percent, BadgeCheck, ExternalLink, CreditCard, Crown, FileText
+   Percent, BadgeCheck, ExternalLink, CreditCard, Crown, FileText, TrendingUp
 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { generateInvoicePDF } from '@/lib/pdf/invoice'
@@ -21,6 +21,7 @@ const TABS = [
   { key: 'commissions', icon: Percent, label: 'العمولات' },
   { key: 'flags', icon: Flag, label: 'البلاغات' },
   { key: 'orders', icon: ShoppingBag, label: 'الطلبات' },
+  { key: 'analytics', icon: BarChart2, label: 'الإحصائيات' }
 ] as const
 
 export default function AdminPage() {
@@ -709,6 +710,21 @@ export default function AdminPage() {
               </div>
             </div>
           </div>
+           {tab === 'analytics' && (
+          <div className="space-y-4">
+            <h1 className={titleCls}>الإحصائيات</h1>
+            <div className={cardCls + " p-4 text-center"}>
+              <p className={"text-sm " + mutedCls}>
+                افتح صفحة الإحصائيات التفصيلية 👇
+              </p>
+              <a href="/ar/admin/analytics"
+                className="inline-flex items-center gap-2 mt-3 px-4 py-2.5 bg-neutral-900 dark:bg-white text-white dark:text-neutral-900 rounded-xl text-sm font-semibold">
+                <TrendingUp size={15} />
+                عرض الإحصائيات المبيانية
+              </a>
+            </div>
+          </div>
+        )}
         )}
       </div>
 
