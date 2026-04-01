@@ -23,7 +23,8 @@ export default function ContactPage() {
   useEffect(() => {
     async function load() {
       const supabase = createClient()
-      const { data } = await supabase.from('site_settings').select('key, value')
+const { data, error } = await supabase.from('site_settings').select('key, value')
+console.log('settings:', data, error)
       if (data && data.length > 0) {
         const s: Record<string, string> = {}
         data.forEach(({ key, value }) => { s[key] = value })
