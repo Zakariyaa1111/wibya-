@@ -27,12 +27,13 @@ export default function AdminPage() {
   const router = useRouter()
   const [tab, setTab] = useState<typeof TABS[number]['key']>('overview')
   const [loading, setLoading] = useState(true)
-  const [stats, setStats] = useState({ usersCount: 0, productsCount: 0, ordersCount: 0, pendingCount: 0, flagsCount: 0, adsCount: 0, verificationCount: 0, premiumCount: 0 })
+  const [stats, setStats] = useState({ usersCount: 0, productsCount: 0, ordersCount: 0, pendingCount: 0, flagsCount: 0, adsCount: 0, pendingAdsCount: 0, verificationCount: 0, premiumCount: 0 })
   const [pendingProducts, setPendingProducts] = useState<any[]>([])
   const [recentOrders, setRecentOrders] = useState<any[]>([])
   const [flags, setFlags] = useState<any[]>([])
   const [sellers, setSellers] = useState<any[]>([])
   const [ads, setAds] = useState<any[]>([])
+  const [pendingAds, setPendingAds] = useState<any[]>([])
   const [verificationRequests, setVerificationRequests] = useState<any[]>([])
   const [premiumRequests, setPremiumRequests] = useState<any[]>([])
   const [globalCommission, setGlobalCommission] = useState(10)
@@ -50,9 +51,10 @@ export default function AdminPage() {
       const [
         { count: usersCount }, { count: productsCount }, { count: ordersCount },
         { count: pendingCount }, { count: flagsCount }, { count: adsCount },
+        { count: pendingAdsCount },
         { count: verificationCount }, { count: premiumCount },
         { data: pp }, { data: ro }, { data: fl }, { data: sl }, { data: ad },
-        { data: vr }, { data: pr },
+        { data: pendingAd }, { data: vr }, { data: pr },
       ] = await Promise.all([
         supabase.from('profiles').select('*', { count: 'exact', head: true }),
         supabase.from('products').select('*', { count: 'exact', head: true }).eq('status', 'active'),
@@ -60,23 +62,26 @@ export default function AdminPage() {
         supabase.from('products').select('*', { count: 'exact', head: true }).eq('status', 'pending'),
         supabase.from('product_reports').select('*', { count: 'exact', head: true }).eq('resolved', false),
         supabase.from('ads').select('*', { count: 'exact', head: true }).eq('status', 'active'),
+        supabase.from('ads').select('*', { count: 'exact', head: true }).eq('status', 'pending'),
         supabase.from('profiles').select('*', { count: 'exact', head: true }).eq('verification_status', 'pending'),
         supabase.from('premium_requests').select('*', { count: 'exact', head: true }).eq('status', 'pending'),
         supabase.from('products').select('id, name, price, category, created_at, seller_id, profiles(store_name)').eq('status', 'pending').order('created_at', { ascending: false }).limit(10),
         supabase.from('orders').select('*').order('created_at', { ascending: false }).limit(10),
         supabase.from('product_reports').select('*').eq('resolved', false).order('created_at', { ascending: false }).limit(30),
         supabase.from('profiles').select('*').eq('role', 'seller').order('created_at', { ascending: false }).limit(30),
-        supabase.from('ads').select('id, title, headline, status, views_count, is_vip, profiles(full_name, store_name)').order('created_at', { ascending: false }).limit(20),
+        supabase.from('ads').select('id, title, headline, description, status, views_count, is_vip, city, phone, price, images, category, user_id, advertiser_id').eq('status', 'active').order('created_at', { ascending: false }).limit(20),
+        supabase.from('ads').select('id, title, headline, description, status, views_count, city, phone, price, images, category, user_id, advertiser_id, created_at').eq('status', 'pending').order('created_at', { ascending: false }).limit(20),
         supabase.from('profiles').select('id, full_name, store_name, email, id_card_url, verification_requested_at, successful_sales').eq('verification_status', 'pending').order('verification_requested_at', { ascending: false }),
         supabase.from('premium_requests').select('*, profiles(full_name, store_name, email, phone)').eq('status', 'pending').order('created_at', { ascending: false }),
       ])
 
-      setStats({ usersCount: usersCount ?? 0, productsCount: productsCount ?? 0, ordersCount: ordersCount ?? 0, pendingCount: pendingCount ?? 0, flagsCount: flagsCount ?? 0, adsCount: adsCount ?? 0, verificationCount: verificationCount ?? 0, premiumCount: premiumCount ?? 0 })
+      setStats({ usersCount: usersCount ?? 0, productsCount: productsCount ?? 0, ordersCount: ordersCount ?? 0, pendingCount: pendingCount ?? 0, flagsCount: flagsCount ?? 0, adsCount: adsCount ?? 0, pendingAdsCount: pendingAdsCount ?? 0, verificationCount: verificationCount ?? 0, premiumCount: premiumCount ?? 0 })
       setPendingProducts(pp ?? [])
       setRecentOrders(ro ?? [])
       setFlags(fl ?? [])
       setSellers(sl ?? [])
       setAds(ad ?? [])
+      setPendingAds(pendingAd ?? [])
       setVerificationRequests(vr ?? [])
       setPremiumRequests(pr ?? [])
       setLoading(false)
@@ -219,6 +224,24 @@ export default function AdminPage() {
     setGeneratingPdf(null)
   }
 
+  async function approveAd(id: string, userId: string) {
+    const supabase = createClient()
+    await supabase.from('ads').update({ status: 'active' }).eq('id', id)
+    await supabase.from('notifications').insert({ user_id: userId, title: 'تم قبول إعلانك ✅', body: 'إعلانك أصبح نشطاً وظاهراً للجميع', type: 'product', is_read: false })
+    toast.success('تم قبول الإعلان ✅')
+    setPendingAds(prev => prev.filter(a => a.id !== id))
+    setStats(prev => ({ ...prev, pendingAdsCount: prev.pendingAdsCount - 1, adsCount: prev.adsCount + 1 }))
+  }
+
+  async function rejectAd(id: string, userId: string) {
+    const supabase = createClient()
+    await supabase.from('ads').update({ status: 'rejected' }).eq('id', id)
+    await supabase.from('notifications').insert({ user_id: userId, title: 'تم رفض إعلانك ❌', body: 'لم يستوف إعلانك شروط النشر، راجع السياسات', type: 'product', is_read: false })
+    toast.success('تم رفض الإعلان')
+    setPendingAds(prev => prev.filter(a => a.id !== id))
+    setStats(prev => ({ ...prev, pendingAdsCount: prev.pendingAdsCount - 1 }))
+  }
+
   async function toggleAd(id: string, current: string) {
     const supabase = createClient()
     const newStatus = current === 'active' ? 'paused' : 'active'
@@ -262,7 +285,7 @@ export default function AdminPage() {
               {key === 'products' && stats.pendingCount > 0 && <span className="ms-auto bg-amber-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full">{stats.pendingCount}</span>}
               {key === 'flags' && stats.flagsCount > 0 && <span className="ms-auto bg-red-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full">{stats.flagsCount}</span>}
               {key === 'verification' && stats.verificationCount > 0 && <span className="ms-auto bg-blue-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full">{stats.verificationCount}</span>}
-              {key === 'premium' && stats.premiumCount > 0 && <span className="ms-auto bg-amber-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full">{stats.premiumCount}</span>}
+              {key === 'ads' && stats.pendingAdsCount > 0 && <span className="ms-auto bg-amber-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full">{stats.pendingAdsCount}</span>}
             </button>
           ))}
         </nav>
@@ -461,24 +484,65 @@ export default function AdminPage() {
         {tab === 'ads' && (
           <div className="space-y-4">
             <h1 className={titleCls}>إدارة الإعلانات</h1>
+
+            {/* الإعلانات المنتظرة */}
+            {pendingAds.length > 0 && (
+              <div className={cardCls + " overflow-hidden"}>
+                <div className={"px-4 py-3 border-b border-neutral-50 dark:border-neutral-800 flex items-center gap-2"}>
+                  <span className="w-2 h-2 bg-amber-500 rounded-full" />
+                  <h2 className={"font-semibold text-sm " + textCls}>بانتظار المراجعة ({pendingAds.length})</h2>
+                </div>
+                {pendingAds.map((a: any) => (
+                  <div key={a.id} className={"px-4 py-4 " + rowCls}>
+                    <div className="flex items-start gap-3">
+                      {a.images?.[0] && (
+                        <img src={a.images[0]} alt="" className="w-14 h-14 rounded-xl object-cover shrink-0" />
+                      )}
+                      <div className="flex-1 min-w-0">
+                        <div className={"font-medium text-sm truncate " + textCls}>{a.title || '—'}</div>
+                        <div className={"text-xs mt-0.5 " + mutedCls}>{a.city || '—'} · {a.category || '—'}</div>
+                        {a.price && <div className={"text-xs font-semibold mt-0.5 text-green-600"}>{a.price?.toLocaleString()} د.م.</div>}
+                        {a.phone && <div className={"text-xs " + mutedCls}>{a.phone}</div>}
+                      </div>
+                    </div>
+                    <div className="flex gap-2 mt-3">
+                      <button onClick={() => approveAd(a.id, a.user_id || a.advertiser_id)}
+                        className="flex-1 flex items-center justify-center gap-1.5 py-2 bg-green-500 text-white text-xs font-medium rounded-xl">
+                        <CheckCircle size={13} /> قبول
+                      </button>
+                      <button onClick={() => rejectAd(a.id, a.user_id || a.advertiser_id)}
+                        className="flex-1 flex items-center justify-center gap-1.5 py-2 bg-red-500 text-white text-xs font-medium rounded-xl">
+                        <XCircle size={13} /> رفض
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* الإعلانات النشطة */}
             <div className={cardCls + " overflow-hidden"}>
+              <div className={"px-4 py-3 border-b border-neutral-50 dark:border-neutral-800"}>
+                <h2 className={"font-semibold text-sm " + textCls}>الإعلانات النشطة ({ads.length})</h2>
+              </div>
               {ads.length === 0
-                ? <p className={"text-center text-sm py-8 " + mutedCls}>لا توجد إعلانات</p>
+                ? <p className={"text-center text-sm py-8 " + mutedCls}>لا توجد إعلانات نشطة</p>
                 : ads.map((a: any) => (
                   <div key={a.id} className={"flex items-center gap-3 px-4 py-4 " + rowCls}>
+                    {a.images?.[0] && (
+                      <img src={a.images[0]} alt="" className="w-10 h-10 rounded-xl object-cover shrink-0" />
+                    )}
                     <div className="flex-1 min-w-0">
                       <div className={"font-medium text-sm truncate " + textCls}>{a.title || a.headline || '—'}</div>
-                      <div className={"text-xs mt-0.5 " + mutedCls}>{a.profiles?.store_name || a.profiles?.full_name || '—'} · {a.views_count ?? 0} مشاهدة</div>
-                      <div className="flex items-center gap-2 mt-1.5">
+                      <div className={"text-xs mt-0.5 " + mutedCls}>{a.city || '—'} · {a.views_count ?? 0} مشاهدة</div>
+                      <div className="flex items-center gap-2 mt-1">
                         {a.is_vip && <span className="text-[10px] bg-amber-50 text-amber-600 dark:bg-amber-900/20 dark:text-amber-400 px-2 py-0.5 rounded-full font-medium">VIP</span>}
-                        <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium ${a.status === 'active' ? 'bg-green-50 text-green-600 dark:bg-green-900/20 dark:text-green-400' : 'bg-neutral-100 dark:bg-neutral-800 text-neutral-500'}`}>
-                          {a.status === 'active' ? 'نشط' : 'موقوف'}
-                        </span>
+                        <span className="text-[10px] bg-green-50 text-green-600 dark:bg-green-900/20 dark:text-green-400 px-2 py-0.5 rounded-full font-medium">نشط</span>
                       </div>
                     </div>
                     <button onClick={() => toggleAd(a.id, a.status)}
-                      className={`px-3 py-1.5 text-xs font-medium rounded-xl shrink-0 ${a.status === 'active' ? 'bg-red-50 text-red-600' : 'bg-green-50 text-green-600'}`}>
-                      {a.status === 'active' ? 'إيقاف' : 'تفعيل'}
+                      className="px-3 py-1.5 text-xs font-medium rounded-xl shrink-0 bg-red-50 text-red-600">
+                      إيقاف
                     </button>
                   </div>
                 ))

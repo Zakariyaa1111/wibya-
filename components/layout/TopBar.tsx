@@ -1,6 +1,6 @@
 'use client'
 import { useState, useEffect } from 'react'
-import { Search, Bell, User, Menu, X, Moon, Sun, Info, FileText, Shield, Star, Store, ChevronLeft, Megaphone } from 'lucide-react'
+import { Bell, Menu, X, Moon, Sun, Info, FileText, Shield, Star, Store, ChevronLeft, Megaphone } from 'lucide-react'
 import { Link } from '@/lib/i18n/navigation'
 import Image from 'next/image'
 
@@ -40,6 +40,7 @@ export function TopBar() {
         style={{ paddingTop: 'env(safe-area-inset-top, 0px)' }}
       >
         <div className="flex items-center justify-between px-4 h-14 max-w-2xl mx-auto">
+          {/* Left: Menu + Logo */}
           <div className="flex items-center gap-2">
             <button onClick={() => setSidebarOpen(true)} className="p-2 rounded-xl hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors">
               <Menu size={20} className="text-neutral-600 dark:text-neutral-300" />
@@ -50,24 +51,16 @@ export function TopBar() {
             </Link>
           </div>
 
+          {/* Right: Ad button + Bell only */}
           <div className="flex items-center gap-1">
-            {/* ✅ زر إضافة إعلان — لكل المستخدمين */}
             <Link href="/ads/new"
               className="flex items-center gap-1.5 px-3 py-1.5 bg-neutral-900 dark:bg-white text-white dark:text-neutral-900 rounded-xl text-xs font-bold hover:opacity-90 transition-opacity me-1">
               <Megaphone size={14} />
               <span>إعلان</span>
             </Link>
-            <Link href="/search" className="p-2 rounded-xl hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors">
-              <Search size={20} className="text-neutral-600 dark:text-neutral-300" />
-            </Link>
             <Link href="/notifications" className="p-2 rounded-xl hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors relative">
               <Bell size={20} className="text-neutral-600 dark:text-neutral-300" />
               <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full" />
-            </Link>
-            <Link href="/profile" className="p-2">
-              <div className="w-8 h-8 bg-neutral-100 dark:bg-neutral-800 rounded-full flex items-center justify-center">
-                <User size={16} className="text-neutral-500 dark:text-neutral-300" />
-              </div>
             </Link>
           </div>
         </div>
@@ -95,7 +88,7 @@ export function TopBar() {
           <button onClick={toggleDark}
             className="w-full flex items-center justify-between px-4 py-3 rounded-2xl bg-neutral-50 dark:bg-neutral-800 hover:bg-neutral-100 dark:hover:bg-neutral-700 transition-colors">
             <div className="flex items-center gap-3">
-              <div className={`w-8 h-8 rounded-xl flex items-center justify-center transition-colors ${dark ? 'bg-neutral-700' : 'bg-amber-50'}`}>
+              <div className={`w-8 h-8 rounded-xl flex items-center justify-center ${dark ? 'bg-neutral-700' : 'bg-amber-50'}`}>
                 {dark ? <Moon size={16} className="text-blue-400" /> : <Sun size={16} className="text-amber-500" />}
               </div>
               <div className="text-start">
@@ -110,7 +103,6 @@ export function TopBar() {
         </div>
 
         <nav className="flex-1 p-3 space-y-1 overflow-y-auto">
-          {/* زر الإعلان في السايدبار أيضاً */}
           <Link href="/ads/new" onClick={() => setSidebarOpen(false)}
             className="flex items-center justify-between px-4 py-3 rounded-2xl bg-neutral-900 dark:bg-white mb-2">
             <div className="flex items-center gap-3">

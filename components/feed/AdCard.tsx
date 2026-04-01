@@ -1,106 +1,83 @@
 'use client'
 import Image from 'next/image'
-import { Phone, MessageCircle, MapPin, ExternalLink } from 'lucide-react'
-import { useTranslations } from 'next-intl'
-import { Link } from '@/lib/i18n/navigation'
-import type { Database } from '@/lib/supabase/types'
+import { MapPin, Phone, Tag, Megaphone } from 'lucide-react'
+import { useRouter } from '@/lib/i18n/navigation'
 
-type Ad = Database['public']['Tables']['ads']['Row'] & {
-  profiles?: { full_name: string | null; verified: boolean }
+interface AdCardProps {
+  ad: {
+    id: string
+    title: string
+    headline?: string
+    description?: string
+    price?: number
+    city?: string
+    phone?: string
+    images?: string[]
+    category?: string
+    is_vip?: boolean
+  }
+  index?: number
 }
 
-export function AdCard({ ad, index = 0 }: { ad: Ad; index?: number }) {
-  const t = useTranslations('ad')
-  const mainImage = ad.images?.[0] ?? '/placeholder.jpg'
+export function AdCard({ ad, index = 0 }: AdCardProps) {
+  const router = useRouter()
+  const image = ad.images?.[0]
 
   return (
-    <Link href={`/ad/${ad.id}`}>
-      <article
-        className="feed-card border-2 border-brand-100 animate-fade-up"
-        style={{ animationDelay: `${index * 60}ms` }}
-      >
-        {/* Sponsored badge */}
-        <div className="flex items-center gap-2 px-3 py-2 bg-neutral-950 border-b border-neutral-800">
-          <span className="w-1.5 h-1.5 rounded-full bg-brand-400" />
-          <span className="text-[11px] font-semibold text-white tracking-wide uppercase">
-            {t('sponsored')}
-          </span>
-        </div>
+    <div className="bg-white dark:bg-neutral-900 rounded-3xl border border-neutral-100 dark:border-neutral-800 overflow-hidden">
+      {/* Ad badge */}
+      <div className="flex items-center gap-1.5 px-4 pt-3 pb-1">
+        <Megaphone size={12} className="text-neutral-400" />
+        <span className="text-[10px] text-neutral-400 font-medium">إعلان</span>
+        {ad.is_vip && (
+          <span className="text-[10px] bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 px-2 py-0.5 rounded-full font-medium ms-1">VIP</span>
+        )}
+      </div>
 
-        {/* Image */}
-        <div className="relative aspect-[4/3] bg-neutral-100">
-          <Image
-            src={mainImage}
-            alt={ad.title}
-            fill
-            className="object-cover"
-            sizes="(max-width: 768px) 100vw, 50vw"
-          />
-          {ad.is_vip && (
-            <div className="absolute top-3 end-3">
-              <span className="badge bg-brand-500 text-white text-[10px] font-bold px-2 py-1 rounded-lg shadow-sm">
-                VIP
-              </span>
-            </div>
+      {/* Image */}
+      {image && (
+        <div className="relative w-full aspect-video bg-neutral-100 dark:bg-neutral-800 overflow-hidden mx-0">
+          <Image src={image} alt={ad.title} fill className="object-cover" sizes="100vw" />
+        </div>
+      )}
+
+      {/* Content */}
+      <div className="p-4">
+        <h3 className="font-bold text-neutral-900 dark:text-white text-base leading-snug mb-1">{ad.title}</h3>
+        {(ad.headline || ad.description) && (
+          <p className="text-sm text-neutral-500 dark:text-neutral-400 line-clamp-2 mb-3">
+            {ad.headline || ad.description}
+          </p>
+        )}
+
+        <div className="flex flex-wrap items-center gap-3 text-xs text-neutral-400 dark:text-neutral-500">
+          {ad.price && (
+            <span className="flex items-center gap-1 font-bold text-neutral-900 dark:text-white text-sm">
+              <Tag size={12} />
+              {ad.price.toLocaleString()} د.م.
+            </span>
+          )}
+          {ad.city && (
+            <span className="flex items-center gap-1">
+              <MapPin size={11} />
+              {ad.city}
+            </span>
+          )}
+          {ad.category && (
+            <span className="bg-neutral-100 dark:bg-neutral-800 px-2 py-0.5 rounded-full">
+              {ad.category}
+            </span>
           )}
         </div>
 
-        {/* Content */}
-        <div className="p-3">
-          <h3 className="font-semibold text-neutral-900 text-sm line-clamp-2 mb-1.5">
-            {ad.title}
-          </h3>
-
-          <div className="flex items-center justify-between mb-3">
-            {ad.price ? (
-              <div className="flex items-baseline gap-1">
-                <span className="font-bold text-neutral-900 text-base">
-                  {ad.price.toLocaleString()}
-                </span>
-                <span className="text-neutral-500 text-xs">د.م.</span>
-                {ad.price_negotiable && (
-                  <span className="text-neutral-400 text-[11px]">(قابل للتفاوض)</span>
-                )}
-              </div>
-            ) : (
-              <span className="text-neutral-500 text-sm">اتصل للسعر</span>
-            )}
-
-            {ad.city && (
-              <div className="flex items-center gap-1 text-neutral-400">
-                <MapPin size={11} />
-                <span className="text-[11px]">{ad.city}</span>
-              </div>
-            )}
-          </div>
-
-          {/* CTA buttons */}
-          <div className="flex gap-2">
-            {ad.whatsapp && (
-              <a
-                href={`https://wa.me/212${ad.whatsapp.replace(/^0/, '')}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                onClick={e => e.stopPropagation()}
-                className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl bg-green-500 text-white text-xs font-semibold"
-              >
-                <MessageCircle size={13} />
-                واتساب
-              </a>
-            )}
-            {ad.phone && (
-              <a
-                href={`tel:${ad.phone}`}
-                onClick={e => e.stopPropagation()}
-                className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl bg-neutral-900 text-white text-xs font-semibold"
-              >
-                <Phone size={13} />
-                اتصل
-              </a>
-            )}
-          </div>
-        </div>
-      </article>
-    </Link>
+        {ad.phone && (
+          <a href={`tel:${ad.phone}`}
+            className="mt-3 flex items-center justify-center gap-2 w-full py-2.5 bg-neutral-900 dark:bg-white text-white dark:text-neutral-900 rounded-2xl text-sm font-semibold">
+            <Phone size={15} />
+            اتصل الآن
+          </a>
+        )}
+      </div>
+    </div>
   )
 }
