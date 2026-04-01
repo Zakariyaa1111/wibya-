@@ -36,7 +36,7 @@ export default function SellerNotificationsPage() {
       ])
 
       // جلب بيانات المشترين
-      const buyerIds = [...new Set((sellerOrders ?? []).map((o: any) => o.buyer_id))]
+      const buyerIds = Array.from(new Set((sellerOrders ?? []).map((o: any) => o.buyer_id)))
       let buyers: Record<string, any> = {}
       if (buyerIds.length > 0) {
         const { data: buyerProfiles } = await supabase
