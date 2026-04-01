@@ -2,6 +2,7 @@ import { NextIntlClientProvider } from 'next-intl'
 import { getMessages } from 'next-intl/server'
 import { notFound } from 'next/navigation'
 import { CartProvider } from '@/lib/cart/CartContext'
+import { CookieBanner } from '@/components/layout/CookieBanner'
 
 const locales = ['ar', 'fr']
 
@@ -34,6 +35,7 @@ export default async function LocaleLayout({
   {children}
 </CartProvider>
         </NextIntlClientProvider>
+        <CookieBanner />
       </body>
     </html>
   )
