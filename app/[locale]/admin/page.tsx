@@ -710,17 +710,19 @@ export default function AdminPage() {
               </div>
             </div>
           </div>
-           {tab === 'analytics' && (
+        )}
+
+        {/* ANALYTICS */}
+        {tab === 'analytics' && (
           <div className="space-y-4">
             <h1 className={titleCls}>الإحصائيات</h1>
-            <div className={cardCls + " p-4 text-center"}>
-              <p className={"text-sm " + mutedCls}>
-                افتح صفحة الإحصائيات التفصيلية 👇
-              </p>
+            <div className={cardCls + " p-6 text-center"}>
+              <TrendingUp size={40} className={"mx-auto mb-3 " + mutedCls} />
+              <p className={"text-sm mb-4 " + mutedCls}>عرض الإحصائيات المبيانية التفصيلية للموقع</p>
               <a href="/ar/admin/analytics"
-                className="inline-flex items-center gap-2 mt-3 px-4 py-2.5 bg-neutral-900 dark:bg-white text-white dark:text-neutral-900 rounded-xl text-sm font-semibold">
+                className="inline-flex items-center gap-2 px-5 py-3 bg-neutral-900 dark:bg-white text-white dark:text-neutral-900 rounded-xl text-sm font-semibold hover:opacity-90 transition-opacity">
                 <TrendingUp size={15} />
-                عرض الإحصائيات المبيانية
+                فتح صفحة الإحصائيات
               </a>
             </div>
           </div>
