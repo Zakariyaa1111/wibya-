@@ -1,125 +1,195 @@
 'use client'
 import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
-import { useRouter } from 'next/navigation'
+import { useRouter } from '@/lib/i18n/navigation'
 import { TopBar } from '@/components/layout/TopBar'
 import { BottomNav } from '@/components/layout/BottomNav'
-import { ArrowRight, Package } from 'lucide-react'
-import Link from 'next/link'
+import { ShoppingBag, Star, ChevronDown, ChevronUp, MapPin, Package } from 'lucide-react'
+import toast from 'react-hot-toast'
 
-const STATUS_LABEL: Record<string, string> = {
-  pending: 'انتظار', confirmed: 'مؤكد',
-  shipped: 'في الشحن', delivered: 'تم التسليم', cancelled: 'ملغى'
-}
-const STATUS_COLOR: Record<string, string> = {
-  pending: 'bg-amber-100 text-amber-700',
-  confirmed: 'bg-blue-100 text-blue-700',
-  shipped: 'bg-purple-100 text-purple-700',
-  delivered: 'bg-green-100 text-green-700',
-  cancelled: 'bg-red-100 text-red-700',
+const STATUS_LABELS: Record<string, { label: string; color: string }> = {
+  pending:   { label: 'معلق', color: 'bg-amber-50 text-amber-600 dark:bg-amber-900/20 dark:text-amber-400' },
+  confirmed: { label: 'مؤكد', color: 'bg-blue-50 text-blue-600 dark:bg-blue-900/20 dark:text-blue-400' },
+  shipped:   { label: 'في الطريق', color: 'bg-purple-50 text-purple-600 dark:bg-purple-900/20 dark:text-purple-400' },
+  delivered: { label: 'مُسلَّم', color: 'bg-green-50 text-green-600 dark:bg-green-900/20 dark:text-green-400' },
+  collected: { label: 'محصّل', color: 'bg-teal-50 text-teal-600' },
+  available: { label: 'متاح للسحب', color: 'bg-green-50 text-green-600' },
+  cancelled: { label: 'ملغى', color: 'bg-red-50 text-red-500 dark:bg-red-900/20 dark:text-red-400' },
 }
 
 export default function OrdersPage() {
-  const supabase = createClient()
-  const router = useRouter()
   const [orders, setOrders] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
+  const [expanded, setExpanded] = useState<string | null>(null)
+  const [ratingOrder, setRatingOrder] = useState<string | null>(null)
+  const [ratingValue, setRatingValue] = useState(0)
+  const [ratingHover, setRatingHover] = useState(0)
+  const [ratingComment, setRatingComment] = useState('')
+  const [ratingDone, setRatingDone] = useState<string[]>([])
+  const [submitting, setSubmitting] = useState(false)
+  const router = useRouter()
 
   useEffect(() => {
     async function load() {
+      const supabase = createClient()
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) { router.push('/auth/login'); return }
+
       const { data } = await supabase
         .from('orders')
-        .select('id,total,status,created_at,quantity,shipping_address,products(name,images)')
+        .select('*')
         .eq('buyer_id', user.id)
-        .order('created_at', { ascending: false }) as any
+        .order('created_at', { ascending: false })
+
+      // تحقق من التقييمات الموجودة
+      const { data: ratings } = await supabase
+        .from('seller_ratings')
+        .select('order_id')
+        .eq('buyer_id', user.id)
+
       setOrders(data ?? [])
+      setRatingDone(ratings?.map(r => r.order_id) ?? [])
       setLoading(false)
     }
     load()
   }, [])
 
-  async function rateOrder(orderId: string, productId: string) {
-    const stars = prompt('تقييمك من 1 إلى 5:')
-    if (!stars || isNaN(Number(stars)) || Number(stars) < 1 || Number(stars) > 5) return
-    const comment = prompt('تعليق (اختياري):') || ''
+  async function submitRating(order: any) {
+    if (ratingValue === 0) { toast.error('اختر تقييماً'); return }
+    setSubmitting(true)
+    const supabase = createClient()
     const { data: { user } } = await supabase.auth.getUser()
-    await supabase.from('product_reviews').insert({
-      product_id: productId, buyer_id: user!.id,
-      order_id: orderId, stars: parseInt(stars), comment
-    }) as any
-    alert('شكراً على تقييمك!')
+    if (!user) return
+
+    const { error } = await supabase.from('seller_ratings').insert({
+      seller_id: order.seller_id,
+      buyer_id: user.id,
+      order_id: order.id,
+      rating: ratingValue,
+      comment: ratingComment.trim() || null,
+    })
+
+    if (error) { toast.error('خطأ: ' + error.message) }
+    else {
+      toast.success('تم إرسال تقييمك ✅')
+      setRatingDone(prev => [...prev, order.id])
+      setRatingOrder(null)
+      setRatingValue(0)
+      setRatingComment('')
+    }
+    setSubmitting(false)
   }
 
-  return (
-    <div className="min-h-screen bg-neutral-50">
-      <TopBar />
-      <main className="pb-24 pt-4">
-        {/* Header */}
-        <div className="flex items-center gap-3 px-4 mb-4">
-          <button onClick={() => router.back()}
-            className="p-2 rounded-xl bg-white border border-neutral-100 hover:bg-neutral-50 transition-colors">
-            <ArrowRight size={18} className="text-neutral-700 rotate-180" />
-          </button>
-          <h1 className="text-lg font-bold text-neutral-900">طلباتي</h1>
-        </div>
+  if (loading) return (
+    <div className="min-h-screen bg-neutral-50 dark:bg-neutral-950 flex items-center justify-center">
+      <div className="w-6 h-6 border-2 border-neutral-200 border-t-neutral-900 rounded-full animate-spin" />
+    </div>
+  )
 
-        {loading ? (
-          <div className="flex justify-center py-12">
-            <div className="w-6 h-6 border-2 border-neutral-200 border-t-neutral-900 rounded-full animate-spin" />
-          </div>
-        ) : orders.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-24 px-6 text-center">
-            <div className="text-4xl mb-4">🛒</div>
-            <h2 className="font-semibold text-neutral-900 mb-2">لا توجد طلبات بعد</h2>
-            <p className="text-neutral-400 text-sm mb-6">ابدأ بتصفح المنتجات</p>
-            <Link href="/"
-              className="px-6 py-3 bg-neutral-900 text-white rounded-2xl font-semibold text-sm">
-              تصفح المنتجات
-            </Link>
+  return (
+    <div className="min-h-screen bg-neutral-50 dark:bg-neutral-950">
+      <TopBar />
+      <main className="pb-24 pt-4 px-4 max-w-lg mx-auto">
+        <h1 className="text-xl font-bold text-neutral-900 dark:text-white mb-4">طلباتي</h1>
+
+        {orders.length === 0 ? (
+          <div className="bg-white dark:bg-neutral-900 rounded-2xl border border-neutral-100 dark:border-neutral-800 p-8 text-center">
+            <ShoppingBag size={40} className="text-neutral-300 mx-auto mb-3" />
+            <p className="text-neutral-400 text-sm">لا توجد طلبات بعد</p>
           </div>
         ) : (
-          <div className="px-4 space-y-3">
-            {orders.map((order: any) => (
-              <div key={order.id} className="bg-white rounded-2xl border border-neutral-100 p-4">
-                <div className="flex items-start justify-between mb-3">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-xl bg-neutral-100 flex items-center justify-center">
-                      <Package size={18} className="text-neutral-500" />
-                    </div>
-                    <div>
-                      <p className="font-semibold text-neutral-900 text-sm">
-                        طلب #{order.id.slice(-6).toUpperCase()}
-                      </p>
-                      <p className="text-xs text-neutral-400 mt-0.5">
-                        {(order.products as any)?.name ?? 'منتج'}
-                      </p>
-                    </div>
-                  </div>
-                  <span className={`text-xs font-semibold px-2.5 py-1 rounded-full ${STATUS_COLOR[order.status] ?? 'bg-neutral-100 text-neutral-600'}`}>
-                    {STATUS_LABEL[order.status] ?? order.status}
-                  </span>
-                </div>
+          <div className="space-y-3">
+            {orders.map(o => {
+              const s = STATUS_LABELS[o.status] ?? { label: o.status, color: 'bg-neutral-100 text-neutral-500' }
+              const isExpanded = expanded === o.id
+              const items = Array.isArray(o.items) ? o.items : []
+              const canRate = o.status === 'delivered' && !ratingDone.includes(o.id)
+              const isRating = ratingOrder === o.id
 
-                <div className="flex items-center justify-between pt-3 border-t border-neutral-100">
-                  <div className="text-xs text-neutral-400">
-                    الكمية: {order.quantity ?? 1} · دفع عند الاستلام
+              return (
+                <div key={o.id} className="bg-white dark:bg-neutral-900 rounded-2xl border border-neutral-100 dark:border-neutral-800 overflow-hidden">
+                  <div className="flex items-center gap-3 px-4 py-3.5">
+                    <div className="flex-1">
+                      <p className="font-semibold text-sm text-neutral-900 dark:text-white">#{o.id.slice(-6).toUpperCase()}</p>
+                      <p className="text-xs text-neutral-400 mt-0.5">{new Date(o.created_at).toLocaleDateString('ar-MA')}</p>
+                    </div>
+                    <span className={`text-xs font-medium px-2.5 py-1 rounded-xl ${s.color}`}>{s.label}</span>
+                    <p className="font-bold text-sm text-neutral-900 dark:text-white">{o.total?.toLocaleString()} د.م.</p>
+                    <button onClick={() => setExpanded(isExpanded ? null : o.id)} className="text-neutral-400 p-1">
+                      {isExpanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+                    </button>
                   </div>
-                  <p className="font-bold text-neutral-900">
-                    {(order.total ?? 0).toLocaleString()} د.م.
-                  </p>
-                </div>
 
-                {order.status === 'delivered' && (order.products as any)?.id && (
-                  <button
-                    onClick={() => rateOrder(order.id, (order.products as any).id)}
-                    className="mt-3 w-full py-2 rounded-xl border border-neutral-200 text-sm font-medium text-neutral-600 hover:bg-neutral-50 transition-colors">
-                    ⭐ تقييم المنتج
-                  </button>
-                )}
-              </div>
-            ))}
+                  {isExpanded && (
+                    <div className="border-t border-neutral-50 dark:border-neutral-800 px-4 py-3 space-y-3">
+                      {items.length > 0 && (
+                        <div className="space-y-1.5">
+                          {items.map((item: any, i: number) => (
+                            <div key={i} className="flex justify-between text-xs bg-neutral-50 dark:bg-neutral-800 rounded-xl px-3 py-2">
+                              <span className="text-neutral-700 dark:text-neutral-300">{item.name} × {item.quantity}</span>
+                              <span className="font-medium text-neutral-900 dark:text-white">{item.total?.toLocaleString()} د.م.</span>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+
+                      {o.shipping_address && (
+                        <div className="flex items-center gap-2 text-xs text-neutral-400">
+                          <MapPin size={12} />{o.shipping_address}
+                        </div>
+                      )}
+
+                      {/* زر تقييم البائع */}
+                      {canRate && !isRating && (
+                        <button onClick={() => setRatingOrder(o.id)}
+                          className="w-full py-2.5 border border-amber-300 dark:border-amber-700 text-amber-600 dark:text-amber-400 text-sm font-medium rounded-xl hover:bg-amber-50 dark:hover:bg-amber-900/20 transition-colors flex items-center justify-center gap-2">
+                          <Star size={14} className="fill-amber-400 text-amber-400" />
+                          قيّم البائع
+                        </button>
+                      )}
+
+                      {ratingDone.includes(o.id) && (
+                        <div className="flex items-center gap-2 text-xs text-green-600 dark:text-green-400 bg-green-50 dark:bg-green-900/20 rounded-xl px-3 py-2">
+                          <Star size={12} className="fill-green-500 text-green-500" />
+                          تم تقييم البائع ✅
+                        </div>
+                      )}
+
+                      {/* نموذج التقييم */}
+                      {isRating && (
+                        <div className="bg-neutral-50 dark:bg-neutral-800 rounded-2xl p-4 space-y-3">
+                          <p className="font-semibold text-sm text-neutral-900 dark:text-white">قيّم البائع</p>
+                          <div className="flex justify-center gap-2">
+                            {[1,2,3,4,5].map(star => (
+                              <button key={star} type="button"
+                                onClick={() => setRatingValue(star)}
+                                onMouseEnter={() => setRatingHover(star)}
+                                onMouseLeave={() => setRatingHover(0)}>
+                                <Star size={32}
+                                  className={`transition-colors ${star <= (ratingHover || ratingValue) ? 'text-amber-400 fill-amber-400' : 'text-neutral-300 dark:text-neutral-600'}`} />
+                              </button>
+                            ))}
+                          </div>
+                          <textarea value={ratingComment} onChange={e => setRatingComment(e.target.value)}
+                            className="w-full px-3 py-2 rounded-xl text-sm bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-700 text-neutral-900 dark:text-white placeholder-neutral-400 outline-none resize-none"
+                            rows={2} placeholder="تعليقك (اختياري)..." />
+                          <div className="flex gap-2">
+                            <button onClick={() => submitRating(o)} disabled={submitting || ratingValue === 0}
+                              className="flex-1 py-2.5 bg-neutral-900 dark:bg-white text-white dark:text-neutral-900 text-sm font-semibold rounded-xl disabled:opacity-40">
+                              {submitting ? '...' : 'إرسال التقييم'}
+                            </button>
+                            <button onClick={() => setRatingOrder(null)}
+                              className="px-4 py-2.5 bg-neutral-100 dark:bg-neutral-700 text-neutral-600 dark:text-neutral-300 text-sm rounded-xl">
+                              إلغاء
+                            </button>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )
+            })}
           </div>
         )}
       </main>

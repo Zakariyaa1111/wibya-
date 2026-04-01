@@ -21,7 +21,8 @@ const TABS = [
   { key: 'commissions', icon: Percent, label: 'العمولات' },
   { key: 'flags', icon: Flag, label: 'البلاغات' },
   { key: 'orders', icon: ShoppingBag, label: 'الطلبات' },
-  { key: 'analytics', icon: BarChart2, label: 'الإحصائيات' }
+  { key: 'analytics', icon: BarChart2, label: 'الإحصائيات' },
+  { key: 'ratings', icon: Star, label: 'التقييمات' }
 ] as const
 
 export default function AdminPage() {
@@ -40,6 +41,8 @@ export default function AdminPage() {
   const [globalCommission, setGlobalCommission] = useState(10)
   const [selectedFlag, setSelectedFlag] = useState<any>(null)
   const [generatingPdf, setGeneratingPdf] = useState<string | null>(null)
+  const [siteRatings, setSiteRatings] = useState<any[]>([])
+  const [sellerRatings, setSellerRatings] = useState<any[]>([])
 
   useEffect(() => {
     async function load() {
@@ -85,6 +88,23 @@ export default function AdminPage() {
       setPendingAds(pendingAd ?? [])
       setVerificationRequests(vr ?? [])
       setPremiumRequests(pr ?? [])
+
+      // جلب تقييمات الموقع
+      const { data: sr } = await supabase
+        .from('site_ratings')
+        .select('*, profiles!user_id(full_name, store_name)')
+        .order('created_at', { ascending: false })
+        .limit(30)
+      setSiteRatings(sr ?? [])
+
+      // جلب تقييمات البائعين
+      const { data: sellerR } = await supabase
+        .from('seller_ratings')
+        .select('*, profiles!buyer_id(full_name), profiles!seller_id(store_name, full_name)')
+        .order('created_at', { ascending: false })
+        .limit(30)
+      setSellerRatings(sellerR ?? [])
+
       setLoading(false)
     }
     load()
@@ -727,6 +747,72 @@ export default function AdminPage() {
             </div>
           </div>
         )}
+        {/* RATINGS */}
+        {tab === 'ratings' && (
+          <div className="space-y-6">
+            <h1 className={titleCls}>التقييمات</h1>
+
+            {/* تقييمات الموقع */}
+            <div className={cardCls + " overflow-hidden"}>
+              <div className={"px-4 py-3 border-b border-neutral-50 dark:border-neutral-800 flex items-center justify-between"}>
+                <h2 className={"font-semibold text-sm " + textCls}>تقييمات الموقع</h2>
+                <span className={"text-xs " + mutedCls}>{siteRatings.length} تقييم</span>
+              </div>
+              {siteRatings.length === 0
+                ? <p className={"text-center text-sm py-6 " + mutedCls}>لا توجد تقييمات</p>
+                : siteRatings.map((r: any) => (
+                  <div key={r.id} className={"px-4 py-3 " + rowCls}>
+                    <div className="flex items-center justify-between mb-1">
+                      <span className={"text-sm font-medium " + textCls}>
+                        {r.profiles?.store_name || r.profiles?.full_name || 'مستخدم'}
+                      </span>
+                      <div className="flex items-center gap-1">
+                        {[1,2,3,4,5].map(i => (
+                          <Star key={i} size={13} className={i <= r.rating ? 'text-amber-400 fill-amber-400' : 'text-neutral-200 dark:text-neutral-700'} />
+                        ))}
+                      </div>
+                    </div>
+                    {r.comment && <p className={"text-xs " + mutedCls}>{r.comment}</p>}
+                    <p className={"text-[10px] mt-1 " + mutedCls}>{new Date(r.created_at).toLocaleDateString('ar-MA')}</p>
+                  </div>
+                ))
+              }
+            </div>
+
+            {/* تقييمات البائعين */}
+            <div className={cardCls + " overflow-hidden"}>
+              <div className={"px-4 py-3 border-b border-neutral-50 dark:border-neutral-800 flex items-center justify-between"}>
+                <h2 className={"font-semibold text-sm " + textCls}>تقييمات البائعين</h2>
+                <span className={"text-xs " + mutedCls}>{sellerRatings.length} تقييم</span>
+              </div>
+              {sellerRatings.length === 0
+                ? <p className={"text-center text-sm py-6 " + mutedCls}>لا توجد تقييمات</p>
+                : sellerRatings.map((r: any) => (
+                  <div key={r.id} className={"px-4 py-3 " + rowCls}>
+                    <div className="flex items-center justify-between mb-1">
+                      <div>
+                        <span className={"text-sm font-medium " + textCls}>
+                          {r['profiles!seller_id']?.store_name || r['profiles!seller_id']?.full_name || 'بائع'}
+                        </span>
+                        <span className={"text-xs ms-2 " + mutedCls}>
+                          من: {r['profiles!buyer_id']?.full_name || 'مشتري'}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-1">
+                        {[1,2,3,4,5].map(i => (
+                          <Star key={i} size={13} className={i <= r.rating ? 'text-amber-400 fill-amber-400' : 'text-neutral-200 dark:text-neutral-700'} />
+                        ))}
+                      </div>
+                    </div>
+                    {r.comment && <p className={"text-xs " + mutedCls}>{r.comment}</p>}
+                    <p className={"text-[10px] mt-1 " + mutedCls}>{new Date(r.created_at).toLocaleDateString('ar-MA')}</p>
+                  </div>
+                ))
+              }
+            </div>
+          </div>
+        )}
+
       </div>
 
       {/* Mobile nav */}
