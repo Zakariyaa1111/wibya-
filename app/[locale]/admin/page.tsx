@@ -114,6 +114,21 @@ export default function AdminPage() {
         .limit(30)
       setSellerRatings(sellerR ?? [])
 
+      // جلب معلومات التواصل من Supabase
+      const { data: settings } = await supabase
+        .from('site_settings')
+        .select('key, value')
+      if (settings && settings.length > 0) {
+        const s: Record<string, string> = {}
+        settings.forEach(({ key, value }) => { s[key] = value })
+        setContactInfo({
+          email: s['contact_email'] || 'support@wibya.com',
+          phone: s['contact_phone'] || '+212 6XX-XXXXXX',
+          whatsapp: s['contact_whatsapp'] || '+212 6XX-XXXXXX',
+          address: s['contact_address'] || 'المغرب',
+        })
+      }
+
       setLoading(false)
     }
     load()
@@ -853,9 +868,13 @@ export default function AdminPage() {
                 disabled={savingContact}
                 onClick={async () => {
                   setSavingContact(true)
-                  // حفظ في localStorage كمثال — يمكن استبداله بجدول Supabase
-                  localStorage.setItem('wibya_contact', JSON.stringify(contactInfo))
-                  await new Promise(r => setTimeout(r, 500))
+                  const supabase = createClient()
+                  await Promise.all([
+                    supabase.from('site_settings').upsert({ key: 'contact_email', value: contactInfo.email, updated_at: new Date().toISOString() }),
+                    supabase.from('site_settings').upsert({ key: 'contact_phone', value: contactInfo.phone, updated_at: new Date().toISOString() }),
+                    supabase.from('site_settings').upsert({ key: 'contact_whatsapp', value: contactInfo.whatsapp, updated_at: new Date().toISOString() }),
+                    supabase.from('site_settings').upsert({ key: 'contact_address', value: contactInfo.address, updated_at: new Date().toISOString() }),
+                  ])
                   toast.success('تم حفظ معلومات التواصل ✅')
                   setSavingContact(false)
                 }}
