@@ -5,6 +5,7 @@ import { useRouter } from '@/lib/i18n/navigation'
 import Image from 'next/image'
 import { Send, ImagePlus, X, ArrowRight, ShieldCheck, MessageCircle, FileText } from 'lucide-react'
 import toast from 'react-hot-toast'
+import { checkMessage, getWarningMessage } from '@/lib/moderation/messageFilter'
 
 interface Conversation {
   user_id: string
@@ -147,9 +148,16 @@ export default function SellerMessagesPage() {
   async function sendMessage() {
     const content = text.trim()
     if (!content || !userId || !selected || sending) return
+
+    // 🔒 فحص الرسالة
+    const check = checkMessage(content)
+    if (check.flagged && (check.type === 'phone' || check.type === 'email' || check.type === 'link')) {
+      toast.error(getWarningMessage(check.type), { duration: 4000, icon: '🚫' })
+      return
+    }
+
     setSending(true)
     setText('')
-
     const supabase = createClient()
     const { data, error } = await supabase.from('messages').insert({
       sender_id: userId,
@@ -162,11 +170,16 @@ export default function SellerMessagesPage() {
     if (error) { toast.error('خطأ: ' + error.message); setText(content) }
     else if (data) {
       setMessages(prev => [...prev, data])
+      // فحص في الخلفية
+      if (check.flagged) {
+        supabase.from('flagged_messages').insert({
+          message_id: data.id, sender_id: userId, receiver_id: selected,
+          content, flag_reason: check.reason, flag_type: check.type,
+        })
+      }
       await supabase.from('notifications').insert({
-        user_id: selected,
-        title: '💬 رد من البائع',
-        body: content.slice(0, 60),
-        type: 'order', is_read: false,
+        user_id: selected, title: '💬 رد من البائع',
+        body: content.slice(0, 60), type: 'order', is_read: false,
       })
       setConversations(prev => prev.map(c =>
         c.user_id === selected ? { ...c, last_message: content, last_time: new Date().toISOString() } : c
