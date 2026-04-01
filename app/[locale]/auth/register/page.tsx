@@ -7,28 +7,23 @@ import { ArrowRight, Check } from 'lucide-react'
 import Image from 'next/image'
 import toast from 'react-hot-toast'
 
-type Role = 'buyer' | 'seller' | 'advertiser'
+type Role = 'buyer' | 'seller'
 
 const ROLES: { value: Role; label: string; emoji: string; desc: string }[] = [
-  { value: 'buyer', label: 'مشتري', emoji: '🛍️', desc: 'تصفح واشترِ المنتجات' },
-  { value: 'seller', label: 'بائع', emoji: '🏪', desc: 'أضف منتجاتك وبِع' },
-  { value: 'advertiser', label: 'معلن', emoji: '📢', desc: 'انشر إعلاناتك التجارية' },
+  { value: 'buyer', label: 'مشتري', emoji: '🛍️', desc: 'تصفح واشترِ المنتجات وأضف إعلانات' },
+  { value: 'seller', label: 'بائع', emoji: '🏪', desc: 'أضف منتجاتك وبِع + إعلانات' },
 ]
 
 function Checkbox({ checked, onChange, children }: { checked: boolean; onChange: () => void; children: React.ReactNode }) {
   return (
     <label className="flex items-start gap-3 cursor-pointer group">
-      <div
-        onClick={onChange}
+      <div onClick={onChange}
         className={`w-5 h-5 rounded-lg border-2 flex items-center justify-center shrink-0 mt-0.5 transition-colors ${
-          checked
-            ? 'bg-neutral-900 border-neutral-900'
-            : 'border-neutral-300 group-hover:border-neutral-400'
-        }`}
-      >
-        {checked && <Check size={12} className="text-white" strokeWidth={3} />}
+          checked ? 'bg-neutral-900 dark:bg-white border-neutral-900 dark:border-white' : 'border-neutral-300 dark:border-neutral-600 group-hover:border-neutral-400'
+        }`}>
+        {checked && <Check size={12} className="text-white dark:text-neutral-900" strokeWidth={3} />}
       </div>
-      <span className="text-sm text-neutral-600 leading-relaxed">{children}</span>
+      <span className="text-sm text-neutral-600 dark:text-neutral-400 leading-relaxed">{children}</span>
     </label>
   )
 }
@@ -47,14 +42,8 @@ export default function RegisterPage() {
 
   async function handleRegister(e: React.FormEvent) {
     e.preventDefault()
-    if (!acceptTerms) {
-      toast.error('يجب الموافقة على شروط الاستخدام وسياسة الخصوصية')
-      return
-    }
-    if (!acceptCookies) {
-      toast.error('يجب الموافقة على استخدام ملفات تعريف الارتباط')
-      return
-    }
+    if (!acceptTerms) { toast.error('يجب الموافقة على شروط الاستخدام وسياسة الخصوصية'); return }
+    if (!acceptCookies) { toast.error('يجب الموافقة على استخدام ملفات تعريف الارتباط'); return }
     setLoading(true)
     const supabase = createClient()
     const { error } = await supabase.auth.signUp({
@@ -73,7 +62,6 @@ export default function RegisterPage() {
     if (error) {
       toast.error(error.message)
     } else {
-      // حفظ قبول الكوكيز في localStorage
       localStorage.setItem('cookies_accepted', 'true')
       localStorage.setItem('cookies_date', new Date().toISOString())
       toast.success('تم إنشاء الحساب! تحقق من بريدك الإلكتروني')
@@ -85,10 +73,8 @@ export default function RegisterPage() {
   return (
     <div className="min-h-screen flex flex-col bg-white dark:bg-neutral-950">
       <div className="flex items-center justify-between px-5 pt-4 pb-2">
-        <button
-          onClick={() => step === 'form' ? setStep('role') : router.back()}
-          className="p-2 rounded-xl hover:bg-neutral-100 dark:hover:bg-neutral-800"
-        >
+        <button onClick={() => step === 'form' ? setStep('role') : router.back()}
+          className="p-2 rounded-xl hover:bg-neutral-100 dark:hover:bg-neutral-800">
           <ArrowRight size={20} className="text-neutral-600 dark:text-neutral-400 rotate-180" />
         </button>
         <Image src="/logo.png" alt="Wibya" width={36} height={36} className="object-contain" />
@@ -99,7 +85,7 @@ export default function RegisterPage() {
         {step === 'role' ? (
           <>
             <h1 className="text-2xl font-bold text-neutral-900 dark:text-white mb-1">أنت...</h1>
-            <p className="text-neutral-400 text-sm mb-8">اختر نوع حسابك</p>
+            <p className="text-neutral-400 dark:text-neutral-500 text-sm mb-8">اختر نوع حسابك</p>
             <div className="space-y-3">
               {ROLES.map(r => (
                 <button key={r.value} onClick={() => { setRole(r.value); setStep('form') }}
@@ -111,7 +97,7 @@ export default function RegisterPage() {
                   <span className="text-2xl">{r.emoji}</span>
                   <div>
                     <div className="font-semibold text-neutral-900 dark:text-white">{r.label}</div>
-                    <div className="text-sm text-neutral-400">{r.desc}</div>
+                    <div className="text-sm text-neutral-400 dark:text-neutral-500">{r.desc}</div>
                   </div>
                 </button>
               ))}
@@ -120,7 +106,7 @@ export default function RegisterPage() {
         ) : (
           <>
             <h1 className="text-2xl font-bold text-neutral-900 dark:text-white mb-1">{t('register')}</h1>
-            <p className="text-neutral-400 text-sm mb-6">
+            <p className="text-neutral-400 dark:text-neutral-500 text-sm mb-6">
               حساب {ROLES.find(r => r.value === role)?.label}
             </p>
             <form onSubmit={handleRegister} className="space-y-4">
@@ -140,42 +126,28 @@ export default function RegisterPage() {
                   className="input" placeholder="••••••••" required minLength={6} />
               </div>
 
-              {/* Checkboxes */}
               <div className="space-y-3 pt-2 border-t border-neutral-100 dark:border-neutral-800">
                 <Checkbox checked={acceptTerms} onChange={() => setAcceptTerms(!acceptTerms)}>
                   أوافق على{' '}
-                  <Link href="/terms" className="text-neutral-900 dark:text-white font-medium underline underline-offset-2">
-                    شروط الاستخدام
-                  </Link>
+                  <Link href="/terms" className="text-neutral-900 dark:text-white font-medium underline underline-offset-2">شروط الاستخدام</Link>
                   {' '}و{' '}
-                  <Link href="/privacy" className="text-neutral-900 dark:text-white font-medium underline underline-offset-2">
-                    سياسة الخصوصية
-                  </Link>
-                  {' '}الخاصة بمنصة Wibya
-                  <span className="text-red-500 mr-1">*</span>
+                  <Link href="/privacy" className="text-neutral-900 dark:text-white font-medium underline underline-offset-2">سياسة الخصوصية</Link>
+                  <span className="text-red-500 ms-1">*</span>
                 </Checkbox>
-
                 <Checkbox checked={acceptCookies} onChange={() => setAcceptCookies(!acceptCookies)}>
                   أوافق على استخدام{' '}
-                  <span className="text-neutral-900 dark:text-white font-medium">ملفات تعريف الارتباط (Cookies)</span>
-                  {' '}لتحسين تجربة الاستخدام وتحليل الزيارات
-                  <span className="text-red-500 mr-1">*</span>
+                  <span className="text-neutral-900 dark:text-white font-medium">ملفات تعريف الارتباط</span>
+                  {' '}لتحسين تجربة الاستخدام
+                  <span className="text-red-500 ms-1">*</span>
                 </Checkbox>
               </div>
 
-              <button
-                type="submit"
-                disabled={loading || !acceptTerms || !acceptCookies}
-                className="btn-primary w-full mt-2 disabled:opacity-40"
-              >
+              <button type="submit" disabled={loading || !acceptTerms || !acceptCookies}
+                className="btn-primary w-full mt-2 disabled:opacity-40">
                 {loading ? '...' : t('register')}
               </button>
-
-              <p className="text-xs text-neutral-400 dark:text-neutral-500 text-center">
-                بالتسجيل أنت توافق على جميع سياسات Wibya
-              </p>
             </form>
-            <p className="text-center text-sm text-neutral-500 mt-6">
+            <p className="text-center text-sm text-neutral-500 dark:text-neutral-400 mt-6">
               لديك حساب؟{' '}
               <Link href="/auth/login" className="text-neutral-900 dark:text-white font-semibold underline underline-offset-2">
                 {t('login')}

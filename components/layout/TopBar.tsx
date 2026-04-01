@@ -1,6 +1,6 @@
 'use client'
 import { useState, useEffect } from 'react'
-import { Search, Bell, User, Menu, X, Moon, Sun, Info, FileText, Shield, Star, Store, ChevronLeft } from 'lucide-react'
+import { Search, Bell, User, Menu, X, Moon, Sun, Info, FileText, Shield, Star, Store, ChevronLeft, Megaphone } from 'lucide-react'
 import { Link } from '@/lib/i18n/navigation'
 import Image from 'next/image'
 
@@ -51,6 +51,12 @@ export function TopBar() {
           </div>
 
           <div className="flex items-center gap-1">
+            {/* ✅ زر إضافة إعلان — لكل المستخدمين */}
+            <Link href="/ads/new"
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-neutral-900 dark:bg-white text-white dark:text-neutral-900 rounded-xl text-xs font-bold hover:opacity-90 transition-opacity me-1">
+              <Megaphone size={14} />
+              <span>إعلان</span>
+            </Link>
             <Link href="/search" className="p-2 rounded-xl hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors">
               <Search size={20} className="text-neutral-600 dark:text-neutral-300" />
             </Link>
@@ -67,17 +73,14 @@ export function TopBar() {
         </div>
       </header>
 
-      {/* Overlay */}
       {sidebarOpen && (
         <div className="fixed inset-0 bg-black/50 z-50" onClick={() => setSidebarOpen(false)} />
       )}
 
-      {/* Sidebar */}
       <aside
         className={`fixed top-0 right-0 h-full w-72 bg-white dark:bg-neutral-900 z-50 shadow-2xl transition-transform duration-300 flex flex-col ${sidebarOpen ? 'translate-x-0' : 'translate-x-full'}`}
         style={{ paddingTop: 'env(safe-area-inset-top, 0px)' }}
       >
-        {/* Header */}
         <div className="flex items-center justify-between px-5 py-4 border-b border-neutral-100 dark:border-neutral-800">
           <div className="flex items-center gap-2.5">
             <Image src="/logo.png" alt="Wibya" width={32} height={32} className="object-contain" />
@@ -88,7 +91,6 @@ export function TopBar() {
           </button>
         </div>
 
-        {/* Dark mode toggle */}
         <div className="px-4 py-3 border-b border-neutral-100 dark:border-neutral-800">
           <button onClick={toggleDark}
             className="w-full flex items-center justify-between px-4 py-3 rounded-2xl bg-neutral-50 dark:bg-neutral-800 hover:bg-neutral-100 dark:hover:bg-neutral-700 transition-colors">
@@ -107,8 +109,19 @@ export function TopBar() {
           </button>
         </div>
 
-        {/* Nav links */}
         <nav className="flex-1 p-3 space-y-1 overflow-y-auto">
+          {/* زر الإعلان في السايدبار أيضاً */}
+          <Link href="/ads/new" onClick={() => setSidebarOpen(false)}
+            className="flex items-center justify-between px-4 py-3 rounded-2xl bg-neutral-900 dark:bg-white mb-2">
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-8 rounded-xl bg-white/10 dark:bg-neutral-900/10 flex items-center justify-center">
+                <Megaphone size={15} className="text-white dark:text-neutral-900" />
+              </div>
+              <span className="text-sm font-bold text-white dark:text-neutral-900">أضف إعلاناً</span>
+            </div>
+            <ChevronLeft size={14} className="text-white/60 dark:text-neutral-900/60 rotate-180" />
+          </Link>
+
           {menuLinks.map(({ icon: Icon, label, href }) => (
             <Link key={href} href={href} onClick={() => setSidebarOpen(false)}
               className="flex items-center justify-between px-4 py-3 rounded-2xl hover:bg-neutral-50 dark:hover:bg-neutral-800 transition-colors group">
