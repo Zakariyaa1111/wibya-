@@ -284,7 +284,7 @@ export default function SellerMessagesPage() {
                           <p className="text-xs font-medium">ملف PDF</p>
                           <p className="text-[10px] opacity-60">انقر للفتح</p>
                         </div>
-                      </div>
+                      </a>
                     ) : (
                       <div className="px-4 py-2.5">
                         <p className="text-sm leading-relaxed">{msg.content}</p>
