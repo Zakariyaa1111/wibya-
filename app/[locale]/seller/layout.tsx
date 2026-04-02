@@ -1,6 +1,7 @@
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { SellerSidebar } from '@/components/seller/SellerSidebar'
+import { SellerTermsModal } from '@/components/seller/SellerTermsModal'
 
 export default async function SellerLayout({ children }: { children: React.ReactNode }) {
   const supabase = await createClient()
@@ -23,6 +24,7 @@ export default async function SellerLayout({ children }: { children: React.React
       <SellerSidebar profile={profile as any} />
       <main className="flex-1 lg:ms-64 min-h-screen">
         {children}
+        <SellerTermsModal />
       </main>
     </div>
   )

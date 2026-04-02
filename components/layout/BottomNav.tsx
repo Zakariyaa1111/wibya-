@@ -4,16 +4,30 @@ import { Link, usePathname } from '@/lib/i18n/navigation'
 import { Home, Search, ShoppingBag, User, Store } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 
+// ✅ Cache خارج الـ component — لا يُعاد الجلب في كل render
+let cachedRole: string | null = null
+let cacheTime = 0
+const ROLE_CACHE_TTL = 10 * 60 * 1000 // 10 دقائق
+
 export function BottomNav() {
   const pathname = usePathname()
-  const [role, setRole] = useState<string | null>(null)
+  const [role, setRole] = useState<string | null>(cachedRole)
 
   useEffect(() => {
+    // إذا الـ cache صالح ما نجيبش من جديد
+    if (cachedRole && Date.now() - cacheTime < ROLE_CACHE_TTL) {
+      setRole(cachedRole)
+      return
+    }
     const supabase = createClient()
     supabase.auth.getUser().then(({ data: { user } }) => {
       if (!user) return
       supabase.from('profiles').select('role').eq('id', user.id).single()
-        .then(({ data }) => setRole(data?.role ?? null))
+        .then(({ data }) => {
+          cachedRole = data?.role ?? null
+          cacheTime = Date.now()
+          setRole(cachedRole)
+        })
     })
   }, [])
 
@@ -24,7 +38,6 @@ export function BottomNav() {
     { href: '/profile', icon: User, label: 'حسابي' },
   ]
 
-  // البائع عنده زر إضافي للوحة التحكم
   const sellerItem = { href: '/seller/dashboard', icon: Store, label: 'متجري' }
 
   const items = role === 'seller'
