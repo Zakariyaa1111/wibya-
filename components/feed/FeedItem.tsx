@@ -106,14 +106,34 @@ export function FeedItem({ product, index = 0 }: { product: Product; index?: num
 
   return (
     <div>
-      <Link href={`/product/${product.id}`}>
-        <article className="feed-card animate-fade-up" style={{ animationDelay: `${index * 60}ms` }}>
+      <Link href={`/product/${product.id}`} aria-label={`${product.name} — ${product.price.toLocaleString()} د.م.`}>
+        <article
+          className="feed-card animate-fade-up"
+          style={{ animationDelay: `${index * 60}ms` }}
+          aria-label={product.name}
+        >
           {/* Image */}
           <div className="relative aspect-[4/5] bg-neutral-100 dark:bg-neutral-800">
-            <Image src={mainImage} alt={product.name} fill className="object-cover" sizes="(max-width: 768px) 100vw, 50vw" />
-            <div className="absolute top-3 start-3 flex flex-col gap-1.5">
-              {product.is_featured && <span className="text-white text-[10px] font-bold px-2 py-1 rounded-lg shadow-sm bg-amber-500">⭐ مميز</span>}
-              {discount && discount > 10 && <span className="text-white text-[10px] font-bold px-2 py-1 rounded-lg shadow-sm bg-red-500">-{discount}%</span>}
+            <Image
+              src={mainImage}
+              alt={product.name}
+              fill
+              className="object-cover"
+              sizes="(max-width: 768px) 100vw, 50vw"
+            />
+            <div className="absolute top-3 start-3 flex flex-col gap-1.5" aria-hidden="true">
+              {/* ✅ تباين محسّن: amber-600 بدل amber-500 */}
+              {product.is_featured && (
+                <span className="text-white text-[10px] font-bold px-2 py-1 rounded-lg shadow-sm bg-amber-600">
+                  ⭐ مميز
+                </span>
+              )}
+              {/* ✅ red-600 بدل red-500 */}
+              {discount && discount > 10 && (
+                <span className="text-white text-[10px] font-bold px-2 py-1 rounded-lg shadow-sm bg-red-600">
+                  -{discount}%
+                </span>
+              )}
             </div>
             <div className="absolute bottom-0 start-0 end-0 p-4 bg-gradient-to-t from-black/70 to-transparent">
               <div className="flex items-end justify-between">
@@ -124,40 +144,60 @@ export function FeedItem({ product, index = 0 }: { product: Product; index?: num
                   </div>
                   {product.city && (
                     <div className="flex items-center gap-1 mt-0.5">
-                      <MapPin size={11} className="text-white/70" />
+                      <MapPin size={11} className="text-white/70" aria-hidden="true" />
                       <span className="text-white/80 text-xs">{product.city}</span>
                     </div>
                   )}
                 </div>
-                {product.original_price && <span className="text-white/50 text-sm line-through">{product.original_price.toLocaleString()}</span>}
+                {product.original_price && (
+                  <span className="text-white/50 text-sm line-through" aria-label={`السعر الأصلي ${product.original_price.toLocaleString()} درهم`}>
+                    {product.original_price.toLocaleString()}
+                  </span>
+                )}
               </div>
             </div>
           </div>
 
           {/* Body */}
           <div className="p-3 dark:bg-neutral-900">
-            <h3 className="font-semibold text-neutral-900 dark:text-white text-sm line-clamp-2 leading-snug mb-3">{product.name}</h3>
+            <h3 className="font-semibold text-neutral-900 dark:text-white text-sm line-clamp-2 leading-snug mb-3">
+              {product.name}
+            </h3>
 
             {/* Actions row */}
             <div className="flex items-center justify-between border-t border-neutral-100 dark:border-neutral-800 pt-2.5">
-              {/* Left: like, comment, share */}
               <div className="flex items-center gap-3">
-                <button onClick={handleLike} className="flex items-center gap-1 text-neutral-400 hover:text-red-500 transition-colors">
-                  <Heart size={18} className={liked ? 'fill-red-500 text-red-500' : ''} strokeWidth={1.8} />
-                  {likeCount > 0 && <span className="text-xs text-neutral-400 dark:text-neutral-500">{likeCount}</span>}
+                {/* ✅ aria-label + aria-pressed */}
+                <button
+                  onClick={handleLike}
+                  aria-label={liked ? `إلغاء الإعجاب بـ ${product.name}` : `أعجبني ${product.name}`}
+                  aria-pressed={liked}
+                  className="flex items-center gap-1 text-neutral-400 hover:text-red-500 transition-colors min-h-[44px] min-w-[44px] justify-center"
+                >
+                  <Heart size={18} className={liked ? 'fill-red-500 text-red-500' : ''} strokeWidth={1.8} aria-hidden="true" />
+                  {likeCount > 0 && <span className="text-xs text-neutral-500 dark:text-neutral-400">{likeCount}</span>}
                 </button>
-                <button onClick={handleComment} className={`flex items-center gap-1 transition-colors ${showComments ? 'text-neutral-900 dark:text-white' : 'text-neutral-400 hover:text-neutral-600 dark:hover:text-neutral-300'}`}>
-                  <MessageCircle size={18} strokeWidth={1.8} />
-                  {comments.length > 0 && <span className="text-xs text-neutral-400 dark:text-neutral-500">{comments.length}</span>}
+
+                <button
+                  onClick={handleComment}
+                  aria-label={showComments ? 'إخفاء التعليقات' : 'إظهار التعليقات'}
+                  aria-expanded={showComments}
+                  className={`flex items-center gap-1 transition-colors min-h-[44px] min-w-[44px] justify-center ${showComments ? 'text-neutral-900 dark:text-white' : 'text-neutral-400 hover:text-neutral-600 dark:hover:text-neutral-300'}`}
+                >
+                  <MessageCircle size={18} strokeWidth={1.8} aria-hidden="true" />
+                  {comments.length > 0 && <span className="text-xs text-neutral-500 dark:text-neutral-400">{comments.length}</span>}
                 </button>
-                <button onClick={handleShare} className="text-neutral-400 hover:text-neutral-600 dark:hover:text-neutral-300 transition-colors">
-                  <Share2 size={18} strokeWidth={1.8} />
+
+                <button
+                  onClick={handleShare}
+                  aria-label={`مشاركة ${product.name}`}
+                  className="text-neutral-400 hover:text-neutral-600 dark:hover:text-neutral-300 transition-colors min-h-[44px] min-w-[44px] flex items-center justify-center"
+                >
+                  <Share2 size={18} strokeWidth={1.8} aria-hidden="true" />
                 </button>
               </div>
 
-              {/* Right: buy + report */}
               <div className="flex items-center gap-2">
-                {/* Report button — صغير بجانب الشراء */}
                 <button
                   onClick={(e) => {
                     e.preventDefault()
@@ -166,15 +206,17 @@ export function FeedItem({ product, index = 0 }: { product: Product; index?: num
                     setShowReportMenu(true)
                   }}
                   disabled={reported}
-                  title={reported ? 'تم الإبلاغ' : 'إبلاغ'}
-                  className={`w-8 h-8 rounded-xl flex items-center justify-center transition-colors ${reported ? 'bg-red-50 dark:bg-red-900/20 cursor-not-allowed' : 'bg-neutral-100 dark:bg-neutral-800 hover:bg-red-50 dark:hover:bg-red-900/20 hover:text-red-500'}`}
+                  aria-label={reported ? 'تم الإبلاغ عن هذا المنتج' : `الإبلاغ عن ${product.name}`}
+                  className={`w-9 h-9 rounded-xl flex items-center justify-center transition-colors ${reported ? 'bg-red-50 dark:bg-red-900/20 cursor-not-allowed' : 'bg-neutral-100 dark:bg-neutral-800 hover:bg-red-50 dark:hover:bg-red-900/20 hover:text-red-500'}`}
                 >
-                  <Flag size={13} className={reported ? 'text-red-400 fill-red-400' : 'text-neutral-400 dark:text-neutral-500'} strokeWidth={1.8} />
+                  <Flag size={13} className={reported ? 'text-red-400 fill-red-400' : 'text-neutral-400 dark:text-neutral-500'} strokeWidth={1.8} aria-hidden="true" />
                 </button>
 
-                {/* Buy button */}
-                <div className="flex items-center gap-1.5 bg-neutral-900 dark:bg-white text-white dark:text-neutral-900 text-xs font-semibold px-3 py-1.5 rounded-xl">
-                  <ShoppingCart size={13} />
+                <div
+                  className="flex items-center gap-1.5 bg-neutral-900 dark:bg-white text-white dark:text-neutral-900 text-xs font-semibold px-3 py-1.5 rounded-xl"
+                  aria-hidden="true"
+                >
+                  <ShoppingCart size={13} aria-hidden="true" />
                   شراء
                 </div>
               </div>
@@ -183,14 +225,18 @@ export function FeedItem({ product, index = 0 }: { product: Product; index?: num
             {/* Seller */}
             {product.profiles && (
               <div className="flex items-center gap-1.5 mt-2.5 pt-2.5 border-t border-neutral-50 dark:border-neutral-800">
-                <div className="w-5 h-5 rounded-full bg-neutral-200 dark:bg-neutral-700 overflow-hidden">
+                <div className="w-5 h-5 rounded-full bg-neutral-200 dark:bg-neutral-700 overflow-hidden" aria-hidden="true">
                   {product.profiles.store_image
                     ? <Image src={product.profiles.store_image} alt="" width={20} height={20} className="object-cover" />
                     : <div className="w-full h-full flex items-center justify-center text-[8px] font-bold text-neutral-500">{product.profiles.store_name?.charAt(0) || 'W'}</div>
                   }
                 </div>
-                <span className="text-[11px] text-neutral-400 dark:text-neutral-500 truncate">{product.profiles.store_name || 'متجر'}</span>
-                {product.profiles.verified && <ShieldCheck size={11} className="text-blue-500 shrink-0" />}
+                <span className="text-[11px] text-neutral-500 dark:text-neutral-400 truncate">
+                  {product.profiles.store_name || 'متجر'}
+                </span>
+                {product.profiles.verified && (
+                  <ShieldCheck size={11} className="text-blue-500 shrink-0" aria-label="متجر موثق" />
+                )}
               </div>
             )}
           </div>
@@ -199,30 +245,51 @@ export function FeedItem({ product, index = 0 }: { product: Product; index?: num
 
       {/* Report Modal */}
       {showReportMenu && (
-        <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/60 backdrop-blur-sm p-4"
-          onClick={(e) => { if (e.target === e.currentTarget) setShowReportMenu(false) }}>
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-label="الإبلاغ عن منتج"
+          className="fixed inset-0 z-50 flex items-end justify-center bg-black/60 backdrop-blur-sm p-4"
+          onClick={(e) => { if (e.target === e.currentTarget) setShowReportMenu(false) }}
+        >
           <div className="bg-white dark:bg-neutral-900 rounded-3xl w-full max-w-md p-5 shadow-2xl">
             <div className="flex items-center justify-between mb-3">
               <h3 className="font-bold text-neutral-900 dark:text-white">الإبلاغ عن منتج</h3>
-              <button onClick={() => setShowReportMenu(false)} className="w-8 h-8 flex items-center justify-center rounded-xl hover:bg-neutral-100 dark:hover:bg-neutral-800">
-                <X size={16} className="text-neutral-500" />
+              <button
+                onClick={() => setShowReportMenu(false)}
+                aria-label="إغلاق نافذة الإبلاغ"
+                className="w-9 h-9 flex items-center justify-center rounded-xl hover:bg-neutral-100 dark:hover:bg-neutral-800"
+              >
+                <X size={16} className="text-neutral-500" aria-hidden="true" />
               </button>
             </div>
-            <p className="text-xs text-neutral-400 dark:text-neutral-500 mb-4 truncate">{product.name}</p>
-            <div className="space-y-2 mb-4">
+            <p className="text-xs text-neutral-500 dark:text-neutral-400 mb-4 truncate">{product.name}</p>
+            <div className="space-y-2 mb-4" role="radiogroup" aria-label="سبب الإبلاغ">
               {REPORT_REASONS.map(({ key, label }) => (
-                <button key={key} onClick={() => setSelectedReason(key)}
-                  className={`w-full text-right px-4 py-2.5 rounded-xl text-sm transition-colors ${selectedReason === key ? 'bg-neutral-900 dark:bg-white text-white dark:text-neutral-900 font-medium' : 'bg-neutral-50 dark:bg-neutral-800 text-neutral-700 dark:text-neutral-300'}`}>
+                <button
+                  key={key}
+                  onClick={() => setSelectedReason(key)}
+                  role="radio"
+                  aria-checked={selectedReason === key}
+                  className={`w-full text-right px-4 py-2.5 rounded-xl text-sm transition-colors ${selectedReason === key ? 'bg-neutral-900 dark:bg-white text-white dark:text-neutral-900 font-medium' : 'bg-neutral-50 dark:bg-neutral-800 text-neutral-700 dark:text-neutral-300'}`}
+                >
                   {label}
                 </button>
               ))}
             </div>
-            <textarea value={reportDetails} onChange={e => setReportDetails(e.target.value)}
+            <textarea
+              value={reportDetails}
+              onChange={e => setReportDetails(e.target.value)}
               placeholder="تفاصيل إضافية (اختياري)..."
+              aria-label="تفاصيل إضافية للبلاغ"
               className="w-full px-3 py-2.5 text-sm bg-neutral-50 dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 rounded-xl outline-none resize-none text-neutral-900 dark:text-white placeholder-neutral-400 mb-4"
-              rows={2} />
-            <button onClick={submitReport} disabled={!selectedReason}
-              className="w-full py-3 bg-red-500 text-white font-semibold rounded-xl disabled:opacity-40 hover:bg-red-600 text-sm">
+              rows={2}
+            />
+            <button
+              onClick={submitReport}
+              disabled={!selectedReason}
+              className="w-full py-3 bg-red-600 text-white font-semibold rounded-xl disabled:opacity-40 hover:bg-red-700 text-sm transition-colors"
+            >
               إرسال البلاغ
             </button>
           </div>
@@ -231,22 +298,36 @@ export function FeedItem({ product, index = 0 }: { product: Product; index?: num
 
       {/* Comments */}
       {showComments && (
-        <div className="bg-white dark:bg-neutral-900 border border-neutral-100 dark:border-neutral-800 rounded-2xl mt-1 overflow-hidden">
+        <div
+          className="bg-white dark:bg-neutral-900 border border-neutral-100 dark:border-neutral-800 rounded-2xl mt-1 overflow-hidden"
+          aria-label="التعليقات"
+          role="region"
+        >
           <div className="flex items-center justify-between px-4 py-3 border-b border-neutral-50 dark:border-neutral-800">
             <span className="text-sm font-medium text-neutral-900 dark:text-white">التعليقات</span>
-            <button onClick={() => setShowComments(false)} className="text-neutral-400"><X size={16} /></button>
+            <button
+              onClick={() => setShowComments(false)}
+              aria-label="إغلاق التعليقات"
+              className="text-neutral-400 w-9 h-9 flex items-center justify-center rounded-xl hover:bg-neutral-100 dark:hover:bg-neutral-800"
+            >
+              <X size={16} aria-hidden="true" />
+            </button>
           </div>
-          <div className="max-h-48 overflow-y-auto">
+          <div className="max-h-48 overflow-y-auto" role="list" aria-label="قائمة التعليقات">
             {comments.length === 0
-              ? <p className="text-center text-neutral-400 text-xs py-6">لا توجد تعليقات — كن أول من يعلق!</p>
+              ? <p className="text-center text-neutral-500 text-xs py-6">لا توجد تعليقات — كن أول من يعلق!</p>
               : comments.map(c => (
-                <div key={c.id} className="px-4 py-2.5 border-b border-neutral-50 dark:border-neutral-800 last:border-0">
+                <div key={c.id} className="px-4 py-2.5 border-b border-neutral-50 dark:border-neutral-800 last:border-0" role="listitem">
                   <div className="flex items-center gap-2 mb-1">
-                    <div className="w-5 h-5 rounded-full bg-neutral-200 dark:bg-neutral-700 flex items-center justify-center text-[8px] font-bold text-neutral-500">
+                    <div className="w-5 h-5 rounded-full bg-neutral-200 dark:bg-neutral-700 flex items-center justify-center text-[8px] font-bold text-neutral-500" aria-hidden="true">
                       {(c.profiles?.store_name || c.profiles?.full_name || 'W').charAt(0)}
                     </div>
-                    <span className="text-[11px] font-medium text-neutral-700 dark:text-neutral-300">{c.profiles?.store_name || c.profiles?.full_name || 'مستخدم'}</span>
-                    <span className="text-[10px] text-neutral-300 dark:text-neutral-600 ms-auto">{new Date(c.created_at).toLocaleDateString('ar-MA')}</span>
+                    <span className="text-[11px] font-medium text-neutral-700 dark:text-neutral-300">
+                      {c.profiles?.store_name || c.profiles?.full_name || 'مستخدم'}
+                    </span>
+                    <span className="text-[10px] text-neutral-400 dark:text-neutral-500 ms-auto">
+                      {new Date(c.created_at).toLocaleDateString('ar-MA')}
+                    </span>
                   </div>
                   <p className="text-xs text-neutral-600 dark:text-neutral-400 me-7">{c.content}</p>
                 </div>
@@ -255,17 +336,27 @@ export function FeedItem({ product, index = 0 }: { product: Product; index?: num
           </div>
           {userId ? (
             <div className="flex items-center gap-2 px-3 py-2.5 border-t border-neutral-50 dark:border-neutral-800">
-              <input value={newComment} onChange={e => setNewComment(e.target.value)}
+              <label htmlFor={`comment-input-${product.id}`} className="sr-only">اكتب تعليقاً</label>
+              <input
+                id={`comment-input-${product.id}`}
+                value={newComment}
+                onChange={e => setNewComment(e.target.value)}
                 placeholder="اكتب تعليقاً..."
                 className="flex-1 text-sm bg-neutral-50 dark:bg-neutral-800 rounded-xl px-3 py-2 outline-none border border-neutral-100 dark:border-neutral-700 focus:border-neutral-300 text-neutral-900 dark:text-white placeholder-neutral-400"
-                onKeyDown={e => e.key === 'Enter' && submitComment(e)} />
-              <button onClick={submitComment} disabled={!newComment.trim() || commentLoading}
-                className="w-8 h-8 bg-neutral-900 dark:bg-white rounded-xl flex items-center justify-center disabled:opacity-40">
-                <Send size={14} className="text-white dark:text-neutral-900" />
+                onKeyDown={e => e.key === 'Enter' && submitComment(e)}
+                aria-label="اكتب تعليقاً"
+              />
+              <button
+                onClick={submitComment}
+                disabled={!newComment.trim() || commentLoading}
+                aria-label="إرسال التعليق"
+                className="w-9 h-9 bg-neutral-900 dark:bg-white rounded-xl flex items-center justify-center disabled:opacity-40 transition-opacity"
+              >
+                <Send size={14} className="text-white dark:text-neutral-900" aria-hidden="true" />
               </button>
             </div>
           ) : (
-            <p className="text-center text-xs text-neutral-400 py-3">
+            <p className="text-center text-xs text-neutral-500 py-3">
               <Link href="/auth/login" className="text-neutral-700 dark:text-neutral-300 underline">سجل دخول</Link> لتعليق
             </p>
           )}

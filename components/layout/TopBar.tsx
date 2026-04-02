@@ -103,7 +103,7 @@ export function TopBar() {
         id="sidebar-nav"
         role="navigation"
         aria-label="القائمة الرئيسية"
-        aria-hidden={!sidebarOpen}
+        
         className={`fixed top-0 right-0 h-full w-72 bg-white dark:bg-neutral-900 z-50 shadow-2xl transition-transform duration-300 flex flex-col ${sidebarOpen ? 'translate-x-0' : 'translate-x-full'}`}
         style={{ paddingTop: 'env(safe-area-inset-top, 0px)' }}
       >
