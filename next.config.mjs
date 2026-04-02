@@ -4,6 +4,13 @@ const withNextIntl = createNextIntlPlugin('./src/i18n.ts');
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  async redirects() {
+    return [
+      { source: '/privacy', destination: '/ar/privacy', permanent: true },
+      { source: '/terms', destination: '/ar/terms', permanent: true },
+      { source: '/contact', destination: '/ar/contact', permanent: true },
+    ]
+  },
   images: {
     remotePatterns: [
       {
@@ -14,14 +21,5 @@ const nextConfig = {
     ],
   },
 };
-const nextConfig = {
-  async redirects() {
-    return [
-      { source: '/privacy', destination: '/ar/privacy', permanent: true },
-      { source: '/terms', destination: '/ar/terms', permanent: true },
-      { source: '/contact', destination: '/ar/contact', permanent: true },
-    ]
-  },
-  images: { ... }
-}
+
 export default withNextIntl(nextConfig);
