@@ -14,5 +14,14 @@ const nextConfig = {
     ],
   },
 };
-
+const nextConfig = {
+  async redirects() {
+    return [
+      { source: '/privacy', destination: '/ar/privacy', permanent: true },
+      { source: '/terms', destination: '/ar/terms', permanent: true },
+      { source: '/contact', destination: '/ar/contact', permanent: true },
+    ]
+  },
+  images: { ... }
+}
 export default withNextIntl(nextConfig);
