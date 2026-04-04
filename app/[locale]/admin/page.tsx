@@ -4,54 +4,53 @@ import { createClient } from '@/lib/supabase/client'
 import { useRouter } from '@/lib/i18n/navigation'
 import Image from 'next/image'
 import {
-  Users, Package, ShoppingBag, Clock, AlertTriangle, CheckCircle,
-  XCircle, Shield, BarChart2, Flag, Store, LogOut, Star, Megaphone,
-  Percent, BadgeCheck, ExternalLink, CreditCard, Crown, FileText, TrendingUp,
-  Phone, Mail, MapPin, MessageCircle, Save
+  Package, Users, ShoppingBag, BarChart2, Flag,
+  CheckCircle, XCircle, Clock, Star, Wallet,
+  AlertTriangle, Eye, Download, Code2, TrendingUp,
+  Shield, LogOut, ChevronDown, ChevronUp, X
 } from 'lucide-react'
 import toast from 'react-hot-toast'
-import { generateInvoicePDF } from '@/lib/pdf/invoice'
+import { reviewProductWithClaude } from '@/lib/actions/claudeReview'
 
 const TABS = [
   { key: 'overview', icon: BarChart2, label: 'نظرة عامة' },
   { key: 'products', icon: Package, label: 'المنتجات' },
-  { key: 'sellers', icon: Store, label: 'المتاجر' },
-  { key: 'verification', icon: CreditCard, label: 'التوثيق' },
-  { key: 'premium', icon: Crown, label: 'Premium' },
-  { key: 'ads', icon: Megaphone, label: 'الإعلانات' },
-  { key: 'commissions', icon: Percent, label: 'العمولات' },
-  { key: 'flags', icon: Flag, label: 'البلاغات' },
-  { key: 'orders', icon: ShoppingBag, label: 'الطلبات' },
-  { key: 'analytics', icon: BarChart2, label: 'الإحصائيات' },
-  { key: 'ratings', icon: Star, label: 'التقييمات' },
-  { key: 'contact', icon: Phone, label: 'التواصل' },
+  { key: 'developers', icon: Code2, label: 'المطورون' },
+  { key: 'purchases', icon: ShoppingBag, label: 'المبيعات' },
+  { key: 'disputes', icon: Flag, label: 'النزاعات' },
+  { key: 'withdrawals', icon: Wallet, label: 'السحوبات' },
+  { key: 'reviews', icon: Star, label: 'التقييمات' },
 ] as const
+
+type TabKey = typeof TABS[number]['key']
 
 export default function AdminPage() {
   const router = useRouter()
-  const [tab, setTab] = useState<typeof TABS[number]['key']>('overview')
+  const [tab, setTab] = useState<TabKey>('overview')
   const [loading, setLoading] = useState(true)
-  const [stats, setStats] = useState({ usersCount: 0, productsCount: 0, ordersCount: 0, pendingCount: 0, flagsCount: 0, adsCount: 0, pendingAdsCount: 0, verificationCount: 0, premiumCount: 0 })
-  const [pendingProducts, setPendingProducts] = useState<any[]>([])
-  const [recentOrders, setRecentOrders] = useState<any[]>([])
-  const [flags, setFlags] = useState<any[]>([])
-  const [sellers, setSellers] = useState<any[]>([])
-  const [ads, setAds] = useState<any[]>([])
-  const [pendingAds, setPendingAds] = useState<any[]>([])
-  const [verificationRequests, setVerificationRequests] = useState<any[]>([])
-  const [premiumRequests, setPremiumRequests] = useState<any[]>([])
-  const [globalCommission, setGlobalCommission] = useState(10)
-  const [selectedFlag, setSelectedFlag] = useState<any>(null)
-  const [generatingPdf, setGeneratingPdf] = useState<string | null>(null)
-  const [siteRatings, setSiteRatings] = useState<any[]>([])
-  const [sellerRatings, setSellerRatings] = useState<any[]>([])
-  const [contactInfo, setContactInfo] = useState({
-    email: 'support@wibya.com',
-    phone: '+212 6XX-XXXXXX',
-    whatsapp: '+212 6XX-XXXXXX',
-    address: 'المغرب',
+  const [reviewing, setReviewing] = useState<string | null>(null)
+  const [expanded, setExpanded] = useState<string | null>(null)
+
+  // Stats
+  const [stats, setStats] = useState({
+    pendingProducts: 0,
+    totalProducts: 0,
+    totalDevelopers: 0,
+    totalBuyers: 0,
+    totalSales: 0,
+    totalRevenue: 0,
+    openDisputes: 0,
+    pendingWithdrawals: 0,
   })
-  const [savingContact, setSavingContact] = useState(false)
+
+  // Data
+  const [pendingProducts, setPendingProducts] = useState<any[]>([])
+  const [activeProducts, setActiveProducts] = useState<any[]>([])
+  const [developers, setDevelopers] = useState<any[]>([])
+  const [purchases, setPurchases] = useState<any[]>([])
+  const [disputes, setDisputes] = useState<any[]>([])
+  const [withdrawals, setWithdrawals] = useState<any[]>([])
+  const [reviews, setReviews] = useState<any[]>([])
 
   useEffect(() => {
     async function load() {
@@ -62,240 +61,170 @@ export default function AdminPage() {
       if (profile?.role !== 'admin') { router.push('/ar'); return }
 
       const [
-        { count: usersCount }, { count: productsCount }, { count: ordersCount },
-        { count: pendingCount }, { count: flagsCount }, { count: adsCount },
-        { count: pendingAdsCount },
-        { count: verificationCount }, { count: premiumCount },
-        { data: pp }, { data: ro }, { data: fl }, { data: sl }, { data: ad },
-        { data: pendingAd }, { data: vr }, { data: pr },
+        { count: pendingCount },
+        { count: totalProducts },
+        { count: totalDevelopers },
+        { count: totalBuyers },
+        { count: totalSales },
+        { count: openDisputes },
+        { count: pendingWithdrawals },
+        { data: pendingProds },
+        { data: activeProds },
+        { data: devs },
+        { data: purcs },
+        { data: disps },
+        { data: withs },
+        { data: revs },
       ] = await Promise.all([
-        supabase.from('profiles').select('*', { count: 'exact', head: true }),
-        supabase.from('products').select('*', { count: 'exact', head: true }).eq('status', 'active'),
-        supabase.from('orders').select('*', { count: 'exact', head: true }),
-        supabase.from('products').select('*', { count: 'exact', head: true }).eq('status', 'pending'),
-        supabase.from('product_reports').select('*', { count: 'exact', head: true }).eq('resolved', false),
-        supabase.from('ads').select('*', { count: 'exact', head: true }).eq('status', 'active'),
-        supabase.from('ads').select('*', { count: 'exact', head: true }).eq('status', 'pending'),
-        supabase.from('profiles').select('*', { count: 'exact', head: true }).eq('verification_status', 'pending'),
-        supabase.from('premium_requests').select('*', { count: 'exact', head: true }).eq('status', 'pending'),
-        supabase.from('products').select('id, name, price, category, created_at, seller_id, profiles(store_name)').eq('status', 'pending').order('created_at', { ascending: false }).limit(10),
-        supabase.from('orders').select('*').order('created_at', { ascending: false }).limit(10),
-        supabase.from('product_reports').select('*').eq('resolved', false).order('created_at', { ascending: false }).limit(30),
-        supabase.from('profiles').select('*').eq('role', 'seller').order('created_at', { ascending: false }).limit(30),
-        supabase.from('ads').select('id, title, headline, description, status, views_count, is_vip, city, phone, price, images, category, user_id, advertiser_id').eq('status', 'active').order('created_at', { ascending: false }).limit(20),
-        supabase.from('ads').select('id, title, headline, description, status, views_count, city, phone, price, images, category, user_id, advertiser_id, created_at').eq('status', 'pending').order('created_at', { ascending: false }).limit(20),
-        supabase.from('profiles').select('id, full_name, store_name, email, id_card_url, verification_requested_at, successful_sales').eq('verification_status', 'pending').order('verification_requested_at', { ascending: false }),
-        supabase.from('premium_requests').select('*, profiles(full_name, store_name, email, phone)').eq('status', 'pending').order('created_at', { ascending: false }),
+        supabase.from('digital_products').select('*', { count: 'exact', head: true }).eq('status', 'pending'),
+        supabase.from('digital_products').select('*', { count: 'exact', head: true }).eq('status', 'active'),
+        supabase.from('profiles').select('*', { count: 'exact', head: true }).eq('role', 'developer'),
+        supabase.from('profiles').select('*', { count: 'exact', head: true }).eq('role', 'buyer'),
+        supabase.from('purchases').select('*', { count: 'exact', head: true }).eq('status', 'completed'),
+        supabase.from('disputes').select('*', { count: 'exact', head: true }).in('status', ['open', 'reviewing']),
+        supabase.from('withdrawal_requests').select('*', { count: 'exact', head: true }).eq('status', 'pending'),
+        supabase.from('digital_products').select('*, profiles(full_name, store_name, email), product_files(file_name, file_size)').eq('status', 'pending').order('created_at', { ascending: false }),
+        supabase.from('digital_products').select('*, profiles(full_name, store_name)').eq('status', 'active').order('sales_count', { ascending: false }).limit(10),
+        supabase.from('profiles').select('*, wallets(balance, total_earned)').eq('role', 'developer').order('created_at', { ascending: false }).limit(20),
+        supabase.from('purchases').select('*, digital_products(title, price), profiles!buyer_id(full_name)').order('created_at', { ascending: false }).limit(20),
+        supabase.from('disputes').select('*, purchases(amount), profiles!buyer_id(full_name), profiles!developer_id(store_name, full_name)').in('status', ['open', 'reviewing']).order('created_at', { ascending: false }),
+        supabase.from('withdrawal_requests').select('*, profiles(full_name, store_name, paypal_email)').eq('status', 'pending').order('created_at', { ascending: false }),
+        supabase.from('product_reviews').select('*, digital_products(title), profiles(full_name)').order('created_at', { ascending: false }).limit(20),
       ])
 
-      setStats({ usersCount: usersCount ?? 0, productsCount: productsCount ?? 0, ordersCount: ordersCount ?? 0, pendingCount: pendingCount ?? 0, flagsCount: flagsCount ?? 0, adsCount: adsCount ?? 0, pendingAdsCount: pendingAdsCount ?? 0, verificationCount: verificationCount ?? 0, premiumCount: premiumCount ?? 0 })
-      setPendingProducts(pp ?? [])
-      setRecentOrders(ro ?? [])
-      setFlags(fl ?? [])
-      setSellers(sl ?? [])
-      setAds(ad ?? [])
-      setPendingAds(pendingAd ?? [])
-      setVerificationRequests(vr ?? [])
-      setPremiumRequests(pr ?? [])
+      // حساب الإيرادات
+      const { data: revenueData } = await supabase
+        .from('purchases')
+        .select('platform_fee')
+        .eq('status', 'completed')
+      const totalRevenue = revenueData?.reduce((s, p) => s + (p.platform_fee || 0), 0) ?? 0
 
-      // جلب تقييمات الموقع
-      const { data: sr } = await supabase
-        .from('site_ratings')
-        .select('*')
-        .order('created_at', { ascending: false })
-        .limit(30)
-      setSiteRatings(sr ?? [])
+      setStats({
+        pendingProducts: pendingCount ?? 0,
+        totalProducts: totalProducts ?? 0,
+        totalDevelopers: totalDevelopers ?? 0,
+        totalBuyers: totalBuyers ?? 0,
+        totalSales: totalSales ?? 0,
+        totalRevenue,
+        openDisputes: openDisputes ?? 0,
+        pendingWithdrawals: pendingWithdrawals ?? 0,
+      })
 
-      // جلب تقييمات البائعين
-      const { data: sellerR } = await supabase
-        .from('seller_ratings')
-        .select('*')
-        .order('created_at', { ascending: false })
-        .limit(30)
-      setSellerRatings(sellerR ?? [])
-
-      // جلب معلومات التواصل من Supabase
-      const { data: settings } = await supabase
-        .from('site_settings')
-        .select('key, value')
-      if (settings && settings.length > 0) {
-        const s: Record<string, string> = {}
-        settings.forEach(({ key, value }) => { s[key] = value })
-        setContactInfo({
-          email: s['contact_email'] || 'support@wibya.com',
-          phone: s['contact_phone'] || '+212 6XX-XXXXXX',
-          whatsapp: s['contact_whatsapp'] || '+212 6XX-XXXXXX',
-          address: s['contact_address'] || 'المغرب',
-        })
-      }
-
+      setPendingProducts(pendingProds ?? [])
+      setActiveProducts(activeProds ?? [])
+      setDevelopers(devs ?? [])
+      setPurchases(purcs ?? [])
+      setDisputes(disps ?? [])
+      setWithdrawals(withs ?? [])
+      setReviews(revs ?? [])
       setLoading(false)
     }
     load()
   }, [])
 
+  // فحص Claude وعرض التقرير
+  async function handleClaudeReview(productId: string) {
+    setReviewing(productId)
+    toast.loading('Claude يفحص المنتج...', { id: 'claude' })
+    try {
+      const report = await reviewProductWithClaude(productId)
+      if (report) {
+        toast.success(`الفحص اكتمل — النتيجة: ${report.score}/100`, { id: 'claude' })
+        // تحديث المنتج في الـ state
+        setPendingProducts(prev => prev.map(p =>
+          p.id === productId ? { ...p, claude_report: report, claude_score: report.score, quality_badge: report.badge } : p
+        ))
+      } else {
+        toast.error('خطأ في الفحص', { id: 'claude' })
+      }
+    } catch {
+      toast.error('خطأ في الفحص', { id: 'claude' })
+    }
+    setReviewing(null)
+  }
+
   async function approveProduct(id: string) {
     const supabase = createClient()
-    const { error } = await supabase.from('products').update({ status: 'active' }).eq('id', id)
+    const { error } = await supabase.from('digital_products').update({ status: 'active' }).eq('id', id)
     if (error) { toast.error('خطأ: ' + error.message); return }
     const product = pendingProducts.find(p => p.id === id)
-    if (product?.seller_id) {
-      await supabase.from('notifications').insert({ user_id: product.seller_id, title: 'تم قبول منتجك ✅', body: `منتج "${product.name}" أصبح نشطاً`, type: 'product', is_read: false })
+    if (product?.developer_id) {
+      await supabase.from('notifications').insert({
+        user_id: product.developer_id,
+        title: '✅ تم قبول منتجك!',
+        body: `منتج "${product.title}" أصبح نشطاً وظاهراً للمشترين`,
+        type: 'product', is_read: false,
+      })
     }
     toast.success('تم قبول المنتج ✅')
     setPendingProducts(prev => prev.filter(p => p.id !== id))
-    setStats(prev => ({ ...prev, pendingCount: prev.pendingCount - 1, productsCount: prev.productsCount + 1 }))
+    setStats(prev => ({ ...prev, pendingProducts: prev.pendingProducts - 1, totalProducts: prev.totalProducts + 1 }))
   }
 
   async function rejectProduct(id: string) {
     const supabase = createClient()
-    await supabase.from('products').update({ status: 'rejected' }).eq('id', id)
+    await supabase.from('digital_products').update({ status: 'rejected' }).eq('id', id)
     const product = pendingProducts.find(p => p.id === id)
-    if (product?.seller_id) {
-      await supabase.from('notifications').insert({ user_id: product.seller_id, title: 'تم رفض منتجك ❌', body: `منتج "${product.name}" تم رفضه`, type: 'product', is_read: false })
+    if (product?.developer_id) {
+      await supabase.from('notifications').insert({
+        user_id: product.developer_id,
+        title: '❌ تم رفض منتجك',
+        body: `منتج "${product.title}" لم يستوف معايير النشر. راجع التقرير وأعد المحاولة.`,
+        type: 'product', is_read: false,
+      })
     }
     toast.success('تم رفض المنتج')
     setPendingProducts(prev => prev.filter(p => p.id !== id))
-    setStats(prev => ({ ...prev, pendingCount: prev.pendingCount - 1 }))
+    setStats(prev => ({ ...prev, pendingProducts: prev.pendingProducts - 1 }))
   }
 
-  async function approveVerification(id: string) {
+  async function resolveDispute(id: string, decision: 'resolved_buyer' | 'resolved_developer', note: string) {
     const supabase = createClient()
-    await supabase.from('profiles').update({ verification_status: 'approved', verified: true, tier: 'verified' }).eq('id', id)
-    await supabase.from('notifications').insert({ user_id: id, title: 'تم توثيق حسابك ✅', body: 'تهانينا! حصلت على شارة التوثيق الزرقاء وعمولة 4%', type: 'product', is_read: false })
-    toast.success('تم توثيق الحساب ✅')
-    setVerificationRequests(prev => prev.filter(v => v.id !== id))
-    setStats(prev => ({ ...prev, verificationCount: prev.verificationCount - 1 }))
+    await supabase.from('disputes').update({
+      status: decision,
+      admin_decision: decision === 'resolved_buyer' ? 'لصالح المشتري' : 'لصالح المطور',
+      admin_note: note,
+      resolved_at: new Date().toISOString(),
+    }).eq('id', id)
+    toast.success('تم حل النزاع ✅')
+    setDisputes(prev => prev.filter(d => d.id !== id))
+    setStats(prev => ({ ...prev, openDisputes: prev.openDisputes - 1 }))
   }
 
-  async function rejectVerification(id: string) {
+  async function processWithdrawal(id: string, approved: boolean) {
     const supabase = createClient()
-    await supabase.from('profiles').update({ verification_status: 'rejected' }).eq('id', id)
-    await supabase.from('notifications').insert({ user_id: id, title: 'تم رفض طلب التوثيق ❌', body: 'تم رفض طلبك، تواصل مع الدعم لمعرفة السبب', type: 'product', is_read: false })
-    toast.success('تم رفض الطلب')
-    setVerificationRequests(prev => prev.filter(v => v.id !== id))
-    setStats(prev => ({ ...prev, verificationCount: prev.verificationCount - 1 }))
-  }
+    const withdrawal = withdrawals.find(w => w.id === id)
+    await supabase.from('withdrawal_requests').update({
+      status: approved ? 'processing' : 'rejected',
+      processed_at: new Date().toISOString(),
+    }).eq('id', id)
 
-  async function approvePremium(id: string, sellerId: string) {
-    const supabase = createClient()
-    const expires = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString()
-    await supabase.from('premium_requests').update({ status: 'approved', processed_at: new Date().toISOString() }).eq('id', id)
-    await supabase.from('profiles').update({ tier: 'premium', is_premium: true, premium_until: expires }).eq('id', sellerId)
-    await supabase.from('notifications').insert({ user_id: sellerId, title: 'متجرك أصبح Premium ⭐', body: 'تهانينا! أصبحت بائعاً مميزاً لمدة 30 يوماً', type: 'product', is_read: false })
-    toast.success('تم تفعيل Premium ⭐')
-    setPremiumRequests(prev => prev.filter(r => r.id !== id))
-    setStats(prev => ({ ...prev, premiumCount: prev.premiumCount - 1 }))
-  }
+    if (approved && withdrawal) {
+      // خصم من المحفظة
+      await supabase.from('wallets').update({
+        balance: supabase.rpc('decrement_balance', { amount: withdrawal.amount, dev_id: withdrawal.developer_id }),
+        total_withdrawn: supabase.rpc('increment_withdrawn', { amount: withdrawal.amount, dev_id: withdrawal.developer_id }),
+      }).eq('developer_id', withdrawal.developer_id)
 
-  async function rejectPremium(id: string, sellerId: string) {
-    const supabase = createClient()
-    await supabase.from('premium_requests').update({ status: 'rejected' }).eq('id', id)
-    await supabase.from('notifications').insert({ user_id: sellerId, title: 'تم رفض طلب Premium ❌', body: 'تم رفض طلبك، تواصل مع الدعم', type: 'product', is_read: false })
-    toast.success('تم رفض الطلب')
-    setPremiumRequests(prev => prev.filter(r => r.id !== id))
-    setStats(prev => ({ ...prev, premiumCount: prev.premiumCount - 1 }))
-  }
-
-  async function toggleVerified(id: string, current: boolean) {
-    const supabase = createClient()
-    await supabase.from('profiles').update({ verified: !current }).eq('id', id)
-    if (!current) await supabase.from('notifications').insert({ user_id: id, title: 'تم توثيق متجرك ✅', body: 'تهانينا! متجرك أصبح موثقاً', type: 'product', is_read: false })
-    toast.success(current ? 'تم إلغاء التوثيق' : 'تم توثيق المتجر ✅')
-    setSellers(prev => prev.map(s => s.id === id ? { ...s, verified: !current } : s))
-  }
-
-  async function togglePremium(id: string, current: boolean) {
-    const supabase = createClient()
-    const premium_until = current ? null : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString()
-    await supabase.from('profiles').update({ is_premium: !current, tier: !current ? 'premium' : 'verified', premium_until }).eq('id', id)
-    if (!current) await supabase.from('notifications').insert({ user_id: id, title: 'متجرك أصبح مميزاً ⭐', body: 'تهانينا! متجرك مميز لمدة 30 يوماً', type: 'product', is_read: false })
-    toast.success(current ? 'تم إلغاء التميز' : 'تم تمييز المتجر ⭐')
-    setSellers(prev => prev.map(s => s.id === id ? { ...s, is_premium: !current } : s))
-  }
-
-  async function updateCommission(id: string, rate: number) {
-    const supabase = createClient()
-    await supabase.from('profiles').update({ commission_rate: rate }).eq('id', id)
-    toast.success('تم تحديث العمولة')
-    setSellers(prev => prev.map(s => s.id === id ? { ...s, commission_rate: rate } : s))
-  }
-
-  async function resolveFlag(id: string) {
-    const supabase = createClient()
-    const { error } = await supabase.from('product_reports').update({ resolved: true }).eq('id', id)
-    if (error) { toast.error('خطأ: ' + error.message); return }
-    toast.success('تم معالجة البلاغ ✅')
-    setFlags(prev => prev.filter(f => f.id !== id))
-    setStats(prev => ({ ...prev, flagsCount: prev.flagsCount - 1 }))
-  }
-
-  async function handleAdminInvoice(order: any) {
-    setGeneratingPdf(order.id)
-    try {
-      const supabase = createClient()
-      const [{ data: seller }, { data: buyer }] = await Promise.all([
-        supabase.from('profiles').select('full_name, store_name, email, city, phone, commission_rate').eq('id', order.seller_id).single(),
-        supabase.from('profiles').select('full_name, email').eq('id', order.buyer_id).single(),
-      ])
-      const items = Array.isArray(order.items) ? order.items : []
-      const commissionRate = seller?.commission_rate ?? 6
-      const subtotal = order.subtotal || order.total
-      const commission = Math.round(subtotal * commissionRate / 100)
-      generateInvoicePDF({
-        orderId: order.id,
-        orderDate: new Date(order.created_at).toLocaleDateString('fr-MA'),
-        status: order.status,
-        sellerName: seller?.full_name || '—',
-        sellerStoreName: seller?.store_name || seller?.full_name || '—',
-        sellerEmail: seller?.email || '—',
-        sellerCity: seller?.city || '—',
-        sellerPhone: seller?.phone,
-        buyerName: buyer?.full_name || '—',
-        buyerEmail: buyer?.email || '—',
-        shippingAddress: order.shipping_address,
-        items: items.length > 0 ? items : [{ name: 'منتج', quantity: 1, price: order.total, total: order.total }],
-        subtotal,
-        commission,
-        commissionRate,
-        total: order.total - commission,
-        paymentMethod: order.payment_method,
-        trackingNumber: order.tracking_number,
+      await supabase.from('notifications').insert({
+        user_id: withdrawal.developer_id,
+        title: '💸 تمت معالجة طلب السحب',
+        body: `سيصل مبلغ $${withdrawal.amount} لحساب PayPal خلال 1-3 أيام`,
+        type: 'product', is_read: false,
       })
-      toast.success('تم توليد الفاتورة ✅')
-    } catch {
-      toast.error('خطأ في توليد الفاتورة')
+      toast.success('تمت الموافقة على السحب ✅')
+    } else {
+      await supabase.from('notifications').insert({
+        user_id: withdrawal.developer_id,
+        title: '❌ تم رفض طلب السحب',
+        body: `تم رفض طلب سحب $${withdrawal.amount}. تواصل مع الدعم لمعرفة السبب.`,
+        type: 'product', is_read: false,
+      })
+      toast.success('تم رفض طلب السحب')
     }
-    setGeneratingPdf(null)
+    setWithdrawals(prev => prev.filter(w => w.id !== id))
+    setStats(prev => ({ ...prev, pendingWithdrawals: prev.pendingWithdrawals - 1 }))
   }
-
-  async function approveAd(id: string, userId: string) {
-    const supabase = createClient()
-    await supabase.from('ads').update({ status: 'active' }).eq('id', id)
-    await supabase.from('notifications').insert({ user_id: userId, title: 'تم قبول إعلانك ✅', body: 'إعلانك أصبح نشطاً وظاهراً للجميع', type: 'product', is_read: false })
-    toast.success('تم قبول الإعلان ✅')
-    setPendingAds(prev => prev.filter(a => a.id !== id))
-    setStats(prev => ({ ...prev, pendingAdsCount: prev.pendingAdsCount - 1, adsCount: prev.adsCount + 1 }))
-  }
-
-  async function rejectAd(id: string, userId: string) {
-    const supabase = createClient()
-    await supabase.from('ads').update({ status: 'rejected' }).eq('id', id)
-    await supabase.from('notifications').insert({ user_id: userId, title: 'تم رفض إعلانك ❌', body: 'لم يستوف إعلانك شروط النشر، راجع السياسات', type: 'product', is_read: false })
-    toast.success('تم رفض الإعلان')
-    setPendingAds(prev => prev.filter(a => a.id !== id))
-    setStats(prev => ({ ...prev, pendingAdsCount: prev.pendingAdsCount - 1 }))
-  }
-
-  async function toggleAd(id: string, current: string) {
-    const supabase = createClient()
-    const newStatus = current === 'active' ? 'paused' : 'active'
-    await supabase.from('ads').update({ status: newStatus }).eq('id', id)
-    toast.success(newStatus === 'active' ? 'تم تفعيل الإعلان' : 'تم إيقاف الإعلان')
-    setAds(prev => prev.map(a => a.id === id ? { ...a, status: newStatus } : a))
-  }
-
-  const reasonLabel: Record<string, string> = { misleading: 'إعلان مضلل', inappropriate: 'محتوى غير لائق', spam: 'بريد مزعج', other: 'سبب آخر', 'محتوى غير لائق': 'محتوى غير لائق' }
 
   if (loading) return (
     <div className="min-h-screen flex items-center justify-center bg-neutral-50 dark:bg-neutral-950">
@@ -304,14 +233,20 @@ export default function AdminPage() {
   )
 
   const cardCls = "bg-white dark:bg-neutral-900 rounded-2xl border border-neutral-100 dark:border-neutral-800"
-  const rowCls = "border-b border-neutral-50 dark:border-neutral-800 last:border-0"
-  const titleCls = "text-xl font-bold text-neutral-900 dark:text-white"
   const textCls = "text-neutral-900 dark:text-white"
   const mutedCls = "text-neutral-400 dark:text-neutral-500"
+  const rowCls = "border-b border-neutral-50 dark:border-neutral-800 last:border-0"
+
+  const scoreColor = (score: number) =>
+    score >= 70 ? 'text-green-600' : score >= 50 ? 'text-amber-600' : 'text-red-500'
+
+  const scoreBg = (score: number) =>
+    score >= 70 ? 'bg-green-50 dark:bg-green-900/20' : score >= 50 ? 'bg-amber-50 dark:bg-amber-900/20' : 'bg-red-50 dark:bg-red-900/20'
 
   return (
     <div className="min-h-screen bg-neutral-50 dark:bg-neutral-950 flex">
-      {/* Sidebar */}
+
+      {/* Sidebar Desktop */}
       <aside className="hidden md:flex flex-col w-64 bg-neutral-950 min-h-screen sticky top-0">
         <div className="p-5 border-b border-neutral-800">
           <div className="flex items-center gap-3">
@@ -326,43 +261,67 @@ export default function AdminPage() {
           {TABS.map(({ key, icon: Icon, label }) => (
             <button key={key} onClick={() => setTab(key)}
               className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-colors text-start ${tab === key ? 'bg-neutral-800 text-white' : 'text-neutral-400 hover:text-white hover:bg-neutral-900'}`}>
-              <Icon size={15} />{label}
-              {key === 'products' && stats.pendingCount > 0 && <span className="ms-auto bg-amber-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full">{stats.pendingCount}</span>}
-              {key === 'flags' && stats.flagsCount > 0 && <span className="ms-auto bg-red-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full">{stats.flagsCount}</span>}
-              {key === 'verification' && stats.verificationCount > 0 && <span className="ms-auto bg-blue-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full">{stats.verificationCount}</span>}
-              {key === 'ads' && stats.pendingAdsCount > 0 && <span className="ms-auto bg-amber-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full">{stats.pendingAdsCount}</span>}
+              <Icon size={15} aria-hidden="true" />
+              {label}
+              {key === 'products' && stats.pendingProducts > 0 && (
+                <span className="ms-auto bg-amber-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full">{stats.pendingProducts}</span>
+              )}
+              {key === 'disputes' && stats.openDisputes > 0 && (
+                <span className="ms-auto bg-red-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full">{stats.openDisputes}</span>
+              )}
+              {key === 'withdrawals' && stats.pendingWithdrawals > 0 && (
+                <span className="ms-auto bg-blue-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full">{stats.pendingWithdrawals}</span>
+              )}
             </button>
           ))}
         </nav>
         <div className="p-3 border-t border-neutral-800">
-          <button onClick={async () => { await createClient().auth.signOut(); router.push('/') }}
+          <button onClick={async () => { await createClient().auth.signOut(); router.push('/ar') }}
             className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm text-neutral-400 hover:text-white hover:bg-neutral-900 transition-colors">
-            <LogOut size={15} /> تسجيل الخروج
+            <LogOut size={15} aria-hidden="true" />
+            تسجيل الخروج
           </button>
         </div>
       </aside>
 
-      <div className="flex-1 p-4 md:p-6 pb-24 md:pb-6">
+      {/* Main */}
+      <div className="flex-1 p-4 lg:p-6 pb-24 max-w-4xl">
 
         {/* OVERVIEW */}
         {tab === 'overview' && (
-          <div className="space-y-6">
-            <h1 className={titleCls}>لوحة الإدارة</h1>
+          <div className="space-y-4">
+            <h1 className={`text-xl font-bold ${textCls}`}>نظرة عامة</h1>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
               {[
-                { label: 'المستخدمون', value: stats.usersCount, icon: Users, color: 'bg-blue-50 text-blue-600 dark:bg-blue-900/20 dark:text-blue-400' },
-                { label: 'المنتجات النشطة', value: stats.productsCount, icon: Package, color: 'bg-green-50 text-green-600 dark:bg-green-900/20 dark:text-green-400' },
-                { label: 'الطلبات', value: stats.ordersCount, icon: ShoppingBag, color: 'bg-purple-50 text-purple-600 dark:bg-purple-900/20 dark:text-purple-400' },
-                { label: 'انتظار مراجعة', value: stats.pendingCount, icon: Clock, color: 'bg-amber-50 text-amber-600 dark:bg-amber-900/20 dark:text-amber-400' },
-                { label: 'بلاغات مفتوحة', value: stats.flagsCount, icon: AlertTriangle, color: 'bg-red-50 text-red-600 dark:bg-red-900/20 dark:text-red-400' },
-                { label: 'إعلانات نشطة', value: stats.adsCount, icon: Megaphone, color: 'bg-pink-50 text-pink-600 dark:bg-pink-900/20 dark:text-pink-400' },
-                { label: 'طلبات التوثيق', value: stats.verificationCount, icon: CreditCard, color: 'bg-blue-50 text-blue-600 dark:bg-blue-900/20 dark:text-blue-400' },
-                { label: 'طلبات Premium', value: stats.premiumCount, icon: Crown, color: 'bg-amber-50 text-amber-600 dark:bg-amber-900/20 dark:text-amber-400' },
+                { label: 'منتجات نشطة', value: stats.totalProducts, icon: Package, color: 'text-green-600' },
+                { label: 'المطورون', value: stats.totalDevelopers, icon: Code2, color: 'text-blue-600' },
+                { label: 'المشترون', value: stats.totalBuyers, icon: Users, color: 'text-purple-600' },
+                { label: 'المبيعات', value: stats.totalSales, icon: ShoppingBag, color: 'text-amber-600' },
+                { label: 'بانتظار المراجعة', value: stats.pendingProducts, icon: Clock, color: 'text-orange-600' },
+                { label: 'نزاعات مفتوحة', value: stats.openDisputes, icon: Flag, color: 'text-red-600' },
+                { label: 'طلبات سحب', value: stats.pendingWithdrawals, icon: Wallet, color: 'text-teal-600' },
+                { label: 'إيرادات المنصة', value: `$${stats.totalRevenue.toFixed(0)}`, icon: TrendingUp, color: 'text-green-600' },
               ].map(({ label, value, icon: Icon, color }) => (
-                <div key={label} className={cardCls + " p-4"}>
-                  <div className={`w-9 h-9 rounded-xl flex items-center justify-center mb-3 ${color}`}><Icon size={16} /></div>
-                  <div className={"text-2xl font-bold " + textCls}>{value}</div>
-                  <div className={"text-xs mt-0.5 " + mutedCls}>{label}</div>
+                <div key={label} className={cardCls + ' p-4'}>
+                  <Icon size={18} className={color + ' mb-2'} aria-hidden="true" />
+                  <p className={`text-2xl font-bold ${textCls}`}>{value}</p>
+                  <p className={`text-xs ${mutedCls} mt-0.5`}>{label}</p>
+                </div>
+              ))}
+            </div>
+
+            {/* أفضل المنتجات */}
+            <div className={cardCls + ' overflow-hidden'}>
+              <div className="px-4 py-3 border-b border-neutral-50 dark:border-neutral-800">
+                <h2 className={`font-semibold text-sm ${textCls}`}>أكثر المنتجات مبيعاً</h2>
+              </div>
+              {activeProducts.slice(0, 5).map(p => (
+                <div key={p.id} className={`flex items-center gap-3 px-4 py-3 ${rowCls}`}>
+                  <div className="flex-1 min-w-0">
+                    <p className={`text-sm font-medium truncate ${textCls}`}>{p.title}</p>
+                    <p className={`text-xs ${mutedCls}`}>{p.profiles?.store_name || p.profiles?.full_name} · {p.sales_count} مبيعة</p>
+                  </div>
+                  <p className={`text-sm font-bold ${textCls}`}>${p.price}</p>
                 </div>
               ))}
             </div>
@@ -372,191 +331,119 @@ export default function AdminPage() {
         {/* PRODUCTS */}
         {tab === 'products' && (
           <div className="space-y-4">
-            <h1 className={titleCls}>مراجعة المنتجات</h1>
-            <div className={cardCls + " overflow-hidden"}>
-              {pendingProducts.length === 0
-                ? <p className={"text-center text-sm py-8 " + mutedCls}>لا توجد منتجات بانتظار المراجعة ✅</p>
-                : pendingProducts.map((p: any) => (
-                  <div key={p.id} className={"flex items-center gap-3 px-4 py-4 " + rowCls}>
-                    <div className="flex-1 min-w-0">
-                      <div className={"font-medium text-sm " + textCls}>{p.name}</div>
-                      <div className={"text-xs mt-0.5 " + mutedCls}>{p.profiles?.store_name ?? '—'} · {p.price?.toLocaleString()} د.م.</div>
-                    </div>
-                    <div className="flex gap-2 shrink-0">
-                      <button onClick={() => approveProduct(p.id)} className="px-3 py-1.5 bg-green-500 text-white text-xs font-medium rounded-xl">قبول</button>
-                      <button onClick={() => rejectProduct(p.id)} className="px-3 py-1.5 bg-red-500 text-white text-xs font-medium rounded-xl">رفض</button>
-                    </div>
-                  </div>
-                ))
-              }
-            </div>
-          </div>
-        )}
+            <h1 className={`text-xl font-bold ${textCls}`}>المنتجات</h1>
 
-        {/* VERIFICATION REQUESTS */}
-        {tab === 'verification' && (
-          <div className="space-y-4">
-            <div className="flex items-center justify-between">
-              <h1 className={titleCls}>طلبات التوثيق</h1>
-              <span className={"text-sm " + mutedCls}>{verificationRequests.length} طلب</span>
-            </div>
-            <div className={cardCls + " overflow-hidden"}>
-              {verificationRequests.length === 0
-                ? <p className={"text-center text-sm py-8 " + mutedCls}>لا توجد طلبات توثيق ✅</p>
-                : verificationRequests.map((v: any) => (
-                  <div key={v.id} className={"px-4 py-4 " + rowCls}>
-                    <div className="flex items-start justify-between gap-3 mb-3">
-                      <div className="flex-1">
-                        <div className={"font-semibold text-sm " + textCls}>{v.store_name || v.full_name || '—'}</div>
-                        <div className={"text-xs " + mutedCls}>{v.email} · {v.successful_sales ?? 0} مبيعات</div>
-                        <div className={"text-xs " + mutedCls + " mt-0.5"}>
-                          {v.verification_requested_at && new Date(v.verification_requested_at).toLocaleDateString('ar-MA')}
-                        </div>
-                      </div>
-                      <div className="flex gap-2 shrink-0">
-                        <button onClick={() => approveVerification(v.id)}
-                          className="px-3 py-1.5 bg-green-500 text-white text-xs font-medium rounded-xl flex items-center gap-1">
-                          <CheckCircle size={12} /> قبول
-                        </button>
-                        <button onClick={() => rejectVerification(v.id)}
-                          className="px-3 py-1.5 bg-red-500 text-white text-xs font-medium rounded-xl flex items-center gap-1">
-                          <XCircle size={12} /> رفض
-                        </button>
-                      </div>
-                    </div>
-                    {/* ID Card */}
-                    {v.id_card_url && (
-                      <div className="rounded-xl overflow-hidden border border-neutral-100 dark:border-neutral-800">
-                        <img src={v.id_card_url} alt="البطاقة الوطنية" className="w-full h-40 object-cover" />
-                        <a href={v.id_card_url} target="_blank" rel="noreferrer"
-                          className={"flex items-center gap-1 px-3 py-2 text-xs " + mutedCls + " hover:text-neutral-600 border-t border-neutral-100 dark:border-neutral-800"}>
-                          <ExternalLink size={11} /> عرض كامل
-                        </a>
-                      </div>
-                    )}
-                  </div>
-                ))
-              }
-            </div>
-          </div>
-        )}
-
-        {/* PREMIUM REQUESTS */}
-        {tab === 'premium' && (
-          <div className="space-y-4">
-            <div className="flex items-center justify-between">
-              <h1 className={titleCls}>طلبات Premium</h1>
-              <span className={"text-sm " + mutedCls}>{premiumRequests.length} طلب</span>
-            </div>
-            <div className={cardCls + " overflow-hidden"}>
-              {premiumRequests.length === 0
-                ? <p className={"text-center text-sm py-8 " + mutedCls}>لا توجد طلبات Premium ✅</p>
-                : premiumRequests.map((r: any) => (
-                  <div key={r.id} className={"px-4 py-4 " + rowCls}>
-                    <div className="flex items-center justify-between gap-3">
-                      <div className="flex-1">
-                        <div className={"font-semibold text-sm " + textCls}>{r.profiles?.store_name || r.profiles?.full_name || '—'}</div>
-                        <div className={"text-xs " + mutedCls}>{r.profiles?.email}</div>
-                        {r.profiles?.phone && <div className={"text-xs " + mutedCls}>{r.profiles.phone}</div>}
-                        <div className="flex items-center gap-2 mt-1.5">
-                          <span className="text-xs bg-amber-50 dark:bg-amber-900/20 text-amber-600 dark:text-amber-400 px-2 py-0.5 rounded-full font-medium">
-                            {r.amount} د.م./شهر
-                          </span>
-                          <span className={"text-xs " + mutedCls}>{new Date(r.created_at).toLocaleDateString('ar-MA')}</span>
-                        </div>
-                      </div>
-                      <div className="flex flex-col gap-2 shrink-0">
-                        <button onClick={() => approvePremium(r.id, r.seller_id)}
-                          className="px-3 py-1.5 bg-amber-500 text-white text-xs font-medium rounded-xl flex items-center gap-1">
-                          <Star size={12} /> تفعيل
-                        </button>
-                        <button onClick={() => rejectPremium(r.id, r.seller_id)}
-                          className="px-3 py-1.5 bg-neutral-200 dark:bg-neutral-700 text-neutral-600 dark:text-neutral-300 text-xs font-medium rounded-xl">
-                          رفض
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                ))
-              }
-            </div>
-          </div>
-        )}
-
-        {/* SELLERS */}
-        {tab === 'sellers' && (
-          <div className="space-y-4">
-            <h1 className={titleCls}>إدارة المتاجر</h1>
-            <div className={cardCls + " overflow-hidden"}>
-              {sellers.length === 0
-                ? <p className={"text-center text-sm py-8 " + mutedCls}>لا توجد متاجر</p>
-                : sellers.map((s: any) => (
-                  <div key={s.id} className={"px-4 py-4 " + rowCls}>
-                    <div className="flex items-center gap-3 mb-3">
-                      <div className="w-10 h-10 rounded-xl bg-neutral-100 dark:bg-neutral-800 flex items-center justify-center font-bold text-neutral-500">
-                        {(s.store_name || s.full_name || 'W').charAt(0).toUpperCase()}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <div className={"font-medium text-sm flex items-center gap-2 " + textCls}>
-                          {s.store_name || s.full_name || '—'}
-                          {s.verified && <BadgeCheck size={14} className="text-blue-500" />}
-                          {s.is_premium && <Star size={14} className="text-amber-500 fill-amber-500" />}
-                        </div>
-                        <div className={"text-xs " + mutedCls}>{s.email} · {s.city || '—'} · عمولة: {s.commission_rate ?? 10}%</div>
-                        <div className={"text-xs mt-0.5 " + mutedCls}>
-                          {s.tier === 'premium' ? '⭐ Premium' : s.tier === 'verified' ? '✓ Verified' : 'Basic'}
-                        </div>
-                      </div>
-                    </div>
-                    <div className="flex flex-wrap gap-2">
-                      <button onClick={() => toggleVerified(s.id, s.verified)}
-                        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-medium transition-colors ${s.verified ? 'bg-blue-50 text-blue-600 dark:bg-blue-900/20 dark:text-blue-400' : 'bg-neutral-100 dark:bg-neutral-800 text-neutral-500'}`}>
-                        <BadgeCheck size={12} />{s.verified ? 'موثق ✓' : 'توثيق'}
-                      </button>
-                      <button onClick={() => togglePremium(s.id, s.is_premium)}
-                        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-medium transition-colors ${s.is_premium ? 'bg-amber-50 text-amber-600 dark:bg-amber-900/20 dark:text-amber-400' : 'bg-neutral-100 dark:bg-neutral-800 text-neutral-500'}`}>
-                        <Star size={12} />{s.is_premium ? 'مميز ⭐' : 'تمييز'}
-                      </button>
-                    </div>
-                  </div>
-                ))
-              }
-            </div>
-          </div>
-        )}
-
-        {/* ADS */}
-        {tab === 'ads' && (
-          <div className="space-y-4">
-            <h1 className={titleCls}>إدارة الإعلانات</h1>
-
-            {/* الإعلانات المنتظرة */}
-            {pendingAds.length > 0 && (
-              <div className={cardCls + " overflow-hidden"}>
-                <div className={"px-4 py-3 border-b border-neutral-50 dark:border-neutral-800 flex items-center gap-2"}>
-                  <span className="w-2 h-2 bg-amber-500 rounded-full" />
-                  <h2 className={"font-semibold text-sm " + textCls}>بانتظار المراجعة ({pendingAds.length})</h2>
+            {/* بانتظار المراجعة */}
+            {pendingProducts.length > 0 && (
+              <div className={cardCls + ' overflow-hidden'}>
+                <div className="px-4 py-3 border-b border-neutral-50 dark:border-neutral-800 flex items-center gap-2">
+                  <Clock size={14} className="text-amber-500" aria-hidden="true" />
+                  <h2 className={`font-semibold text-sm ${textCls}`}>بانتظار المراجعة ({pendingProducts.length})</h2>
                 </div>
-                {pendingAds.map((a: any) => (
-                  <div key={a.id} className={"px-4 py-4 " + rowCls}>
-                    <div className="flex items-start gap-3">
-                      {a.images?.[0] && (
-                        <img src={a.images[0]} alt="" className="w-14 h-14 rounded-xl object-cover shrink-0" />
-                      )}
+                {pendingProducts.map(p => (
+                  <div key={p.id} className={`px-4 py-4 ${rowCls}`}>
+                    {/* Header */}
+                    <div className="flex items-start justify-between gap-3 mb-3">
                       <div className="flex-1 min-w-0">
-                        <div className={"font-medium text-sm truncate " + textCls}>{a.title || '—'}</div>
-                        <div className={"text-xs mt-0.5 " + mutedCls}>{a.city || '—'} · {a.category || '—'}</div>
-                        {a.price && <div className={"text-xs font-semibold mt-0.5 text-green-600"}>{a.price?.toLocaleString()} د.م.</div>}
-                        {a.phone && <div className={"text-xs " + mutedCls}>{a.phone}</div>}
+                        <p className={`font-semibold text-sm ${textCls}`}>{p.title}</p>
+                        <p className={`text-xs ${mutedCls} mt-0.5`}>
+                          {p.profiles?.store_name || p.profiles?.full_name} · {p.category} · ${p.price}
+                        </p>
+                        <p className={`text-xs ${mutedCls}`}>
+                          {p.product_files?.[0] ? `${(p.product_files[0].file_size / 1024 / 1024).toFixed(1)}MB` : 'لا ملف'}
+                          {p.demo_url && ' · Demo متوفر ✅'}
+                        </p>
                       </div>
+                      <button onClick={() => setExpanded(expanded === p.id ? null : p.id)}
+                        className="text-neutral-400 p-1">
+                        {expanded === p.id ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+                      </button>
                     </div>
-                    <div className="flex gap-2 mt-3">
-                      <button onClick={() => approveAd(a.id, a.user_id || a.advertiser_id)}
-                        className="flex-1 flex items-center justify-center gap-1.5 py-2 bg-green-500 text-white text-xs font-medium rounded-xl">
+
+                    {/* Claude Score */}
+                    {p.claude_score !== null && p.claude_score !== undefined ? (
+                      <div className={`rounded-xl p-3 mb-3 ${scoreBg(p.claude_score)}`}>
+                        <div className="flex items-center justify-between mb-2">
+                          <div className="flex items-center gap-2">
+                            <Shield size={14} className={scoreColor(p.claude_score)} aria-hidden="true" />
+                            <span className={`text-xs font-bold ${scoreColor(p.claude_score)}`}>
+                              فحص Claude: {p.claude_score}/100
+                            </span>
+                            {p.quality_badge && <span className="text-[10px] bg-green-500 text-white px-2 py-0.5 rounded-full">شارة الجودة ✓</span>}
+                          </div>
+                          <span className={`text-xs font-semibold ${scoreColor(p.claude_score)}`}>
+                            {p.claude_report?.recommendation === 'approve' ? '✅ يُنصح بالقبول' :
+                             p.claude_report?.recommendation === 'review' ? '⚠️ يحتاج مراجعة' : '❌ يُنصح بالرفض'}
+                          </span>
+                        </div>
+                        {p.claude_report?.summary && (
+                          <p className={`text-xs ${mutedCls} mb-2`}>{p.claude_report.summary}</p>
+                        )}
+                        {expanded === p.id && p.claude_report && (
+                          <div className="space-y-2 mt-2 pt-2 border-t border-neutral-200 dark:border-neutral-700">
+                            {p.claude_report.strengths?.length > 0 && (
+                              <div>
+                                <p className="text-xs font-semibold text-green-600 mb-1">نقاط القوة:</p>
+                                {p.claude_report.strengths.map((s: string, i: number) => (
+                                  <p key={i} className={`text-xs ${mutedCls} flex items-start gap-1`}>
+                                    <CheckCircle size={11} className="text-green-500 shrink-0 mt-0.5" />
+                                    {s}
+                                  </p>
+                                ))}
+                              </div>
+                            )}
+                            {p.claude_report.issues?.length > 0 && (
+                              <div>
+                                <p className="text-xs font-semibold text-amber-600 mb-1">ملاحظات:</p>
+                                {p.claude_report.issues.map((issue: string, i: number) => (
+                                  <p key={i} className={`text-xs ${mutedCls} flex items-start gap-1`}>
+                                    <AlertTriangle size={11} className="text-amber-500 shrink-0 mt-0.5" />
+                                    {issue}
+                                  </p>
+                                ))}
+                              </div>
+                            )}
+                            {p.claude_report.security?.length > 0 && (
+                              <div>
+                                <p className="text-xs font-semibold text-red-600 mb-1">ملاحظات أمنية:</p>
+                                {p.claude_report.security.map((s: string, i: number) => (
+                                  <p key={i} className={`text-xs ${mutedCls} flex items-start gap-1`}>
+                                    <Shield size={11} className="text-red-500 shrink-0 mt-0.5" />
+                                    {s}
+                                  </p>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    ) : (
+                      <button onClick={() => handleClaudeReview(p.id)} disabled={reviewing === p.id}
+                        className="w-full mb-3 py-2.5 border border-dashed border-neutral-300 dark:border-neutral-600 rounded-xl text-xs text-neutral-500 hover:border-neutral-500 hover:text-neutral-700 dark:hover:text-neutral-300 transition-colors flex items-center justify-center gap-2 disabled:opacity-50">
+                        {reviewing === p.id ? (
+                          <><div className="w-3 h-3 border-2 border-neutral-400 border-t-neutral-700 rounded-full animate-spin" /> Claude يفحص...</>
+                        ) : (
+                          <><Shield size={13} /> فحص بـ Claude</>
+                        )}
+                      </button>
+                    )}
+
+                    {/* Demo */}
+                    {p.demo_url && (
+                      <a href={p.demo_url} target="_blank" rel="noreferrer"
+                        className={`flex items-center gap-1.5 text-xs text-blue-500 mb-3 hover:underline`}>
+                        <Eye size={12} /> عرض Demo
+                      </a>
+                    )}
+
+                    {/* Actions */}
+                    <div className="flex gap-2">
+                      <button onClick={() => approveProduct(p.id)}
+                        className="flex-1 flex items-center justify-center gap-1.5 py-2.5 bg-green-500 text-white text-xs font-semibold rounded-xl hover:bg-green-600 transition-colors">
                         <CheckCircle size={13} /> قبول
                       </button>
-                      <button onClick={() => rejectAd(a.id, a.user_id || a.advertiser_id)}
-                        className="flex-1 flex items-center justify-center gap-1.5 py-2 bg-red-500 text-white text-xs font-medium rounded-xl">
+                      <button onClick={() => rejectProduct(p.id)}
+                        className="flex-1 flex items-center justify-center gap-1.5 py-2.5 bg-red-500 text-white text-xs font-semibold rounded-xl hover:bg-red-600 transition-colors">
                         <XCircle size={13} /> رفض
                       </button>
                     </div>
@@ -565,30 +452,28 @@ export default function AdminPage() {
               </div>
             )}
 
-            {/* الإعلانات النشطة */}
-            <div className={cardCls + " overflow-hidden"}>
-              <div className={"px-4 py-3 border-b border-neutral-50 dark:border-neutral-800"}>
-                <h2 className={"font-semibold text-sm " + textCls}>الإعلانات النشطة ({ads.length})</h2>
+            {/* المنتجات النشطة */}
+            <div className={cardCls + ' overflow-hidden'}>
+              <div className="px-4 py-3 border-b border-neutral-50 dark:border-neutral-800">
+                <h2 className={`font-semibold text-sm ${textCls}`}>المنتجات النشطة ({activeProducts.length})</h2>
               </div>
-              {ads.length === 0
-                ? <p className={"text-center text-sm py-8 " + mutedCls}>لا توجد إعلانات نشطة</p>
-                : ads.map((a: any) => (
-                  <div key={a.id} className={"flex items-center gap-3 px-4 py-4 " + rowCls}>
-                    {a.images?.[0] && (
-                      <img src={a.images[0]} alt="" className="w-10 h-10 rounded-xl object-cover shrink-0" />
-                    )}
+              {activeProducts.length === 0
+                ? <p className={`text-center text-sm py-6 ${mutedCls}`}>لا توجد منتجات نشطة</p>
+                : activeProducts.map(p => (
+                  <div key={p.id} className={`flex items-center gap-3 px-4 py-3 ${rowCls}`}>
                     <div className="flex-1 min-w-0">
-                      <div className={"font-medium text-sm truncate " + textCls}>{a.title || a.headline || '—'}</div>
-                      <div className={"text-xs mt-0.5 " + mutedCls}>{a.city || '—'} · {a.views_count ?? 0} مشاهدة</div>
-                      <div className="flex items-center gap-2 mt-1">
-                        {a.is_vip && <span className="text-[10px] bg-amber-50 text-amber-600 dark:bg-amber-900/20 dark:text-amber-400 px-2 py-0.5 rounded-full font-medium">VIP</span>}
-                        <span className="text-[10px] bg-green-50 text-green-600 dark:bg-green-900/20 dark:text-green-400 px-2 py-0.5 rounded-full font-medium">نشط</span>
+                      <div className="flex items-center gap-2">
+                        <p className={`text-sm font-medium truncate ${textCls}`}>{p.title}</p>
+                        {p.quality_badge && <span className="text-[10px] bg-green-500 text-white px-1.5 py-0.5 rounded-full shrink-0">✓</span>}
                       </div>
+                      <p className={`text-xs ${mutedCls}`}>{p.profiles?.store_name || p.profiles?.full_name} · {p.sales_count} مبيعة · ⭐{p.average_rating?.toFixed(1)}</p>
                     </div>
-                    <button onClick={() => toggleAd(a.id, a.status)}
-                      className="px-3 py-1.5 text-xs font-medium rounded-xl shrink-0 bg-red-50 text-red-600">
-                      إيقاف
-                    </button>
+                    <div className="text-end shrink-0">
+                      <p className={`text-sm font-bold ${textCls}`}>${p.price}</p>
+                      {p.claude_score !== null && (
+                        <p className={`text-[10px] ${scoreColor(p.claude_score)}`}>{p.claude_score}/100</p>
+                      )}
+                    </div>
                   </div>
                 ))
               }
@@ -596,83 +481,32 @@ export default function AdminPage() {
           </div>
         )}
 
-        {/* COMMISSIONS */}
-        {tab === 'commissions' && (
+        {/* DEVELOPERS */}
+        {tab === 'developers' && (
           <div className="space-y-4">
-            <h1 className={titleCls}>إدارة العمولات</h1>
-            <div className={cardCls + " p-4 mb-4"}>
-              <p className={"text-xs " + mutedCls + " mb-3"}>العمولات التلقائية حسب المستوى</p>
-              <div className="grid grid-cols-3 gap-3">
-                {[{ tier: 'Basic', rate: '6%', color: 'bg-neutral-100 dark:bg-neutral-800 text-neutral-600 dark:text-neutral-400' }, { tier: 'Verified', rate: '4%', color: 'bg-blue-50 text-blue-600 dark:bg-blue-900/20 dark:text-blue-400' }, { tier: 'Premium', rate: '2%', color: 'bg-amber-50 text-amber-600 dark:bg-amber-900/20 dark:text-amber-400' }].map(({ tier, rate, color }) => (
-                  <div key={tier} className={`rounded-xl p-3 text-center ${color}`}>
-                    <p className="text-lg font-bold">{rate}</p>
-                    <p className="text-xs mt-0.5">{tier}</p>
-                  </div>
-                ))}
-              </div>
-            </div>
-            <div className={cardCls + " p-4"}>
-              <h2 className={"font-semibold text-sm mb-3 " + textCls}>العمولة العامة (تجاوز يدوي)</h2>
-              <div className="flex items-center gap-3">
-                <input type="number" value={globalCommission} onChange={e => setGlobalCommission(Number(e.target.value))}
-                  min={0} max={50} className="w-24 px-3 py-2 border border-neutral-200 dark:border-neutral-700 bg-white dark:bg-neutral-800 text-neutral-900 dark:text-white rounded-xl text-sm text-center" />
-                <span className={"text-sm " + mutedCls}>%</span>
-                <button onClick={async () => {
-                  const supabase = createClient()
-                  await supabase.from('profiles').update({ commission_rate: globalCommission }).eq('role', 'seller')
-                  toast.success('تم تحديث العمولة العامة ✅')
-                  setSellers(prev => prev.map(s => ({ ...s, commission_rate: globalCommission })))
-                }} className="px-4 py-2 bg-neutral-900 dark:bg-white text-white dark:text-neutral-900 text-xs font-medium rounded-xl">
-                  تطبيق على الجميع
-                </button>
-              </div>
-            </div>
-            <div className={cardCls + " overflow-hidden"}>
-              <div className={"px-4 py-3 " + rowCls}>
-                <h2 className={"font-semibold text-sm " + textCls}>عمولة كل متجر</h2>
-              </div>
-              {sellers.map((s: any) => (
-                <div key={s.id} className={"flex items-center gap-3 px-4 py-3 " + rowCls}>
-                  <div className="flex-1 min-w-0">
-                    <div className={"font-medium text-sm " + textCls}>{s.store_name || s.full_name || '—'}</div>
-                    <div className={"text-xs " + mutedCls}>{s.tier || 'basic'}</div>
-                  </div>
-                  <div className="flex items-center gap-2 shrink-0">
-                    <input type="number" defaultValue={s.commission_rate ?? 10} min={0} max={50}
-                      className="w-16 px-2 py-1.5 border border-neutral-200 dark:border-neutral-700 bg-white dark:bg-neutral-800 text-neutral-900 dark:text-white rounded-xl text-sm text-center"
-                      onBlur={e => updateCommission(s.id, Number(e.target.value))} />
-                    <span className={"text-xs " + mutedCls}>%</span>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* FLAGS */}
-        {tab === 'flags' && (
-          <div className="space-y-4">
-            <div className="flex items-center justify-between">
-              <h1 className={titleCls}>البلاغات</h1>
-              <span className={"text-sm " + mutedCls}>{flags.length} بلاغ مفتوح</span>
-            </div>
-            <div className={cardCls + " overflow-hidden"}>
-              {flags.length === 0
-                ? <p className={"text-center text-sm py-8 " + mutedCls}>لا توجد بلاغات مفتوحة ✅</p>
-                : flags.map((f: any) => (
-                  <div key={f.id} className={"px-4 py-4 " + rowCls}>
-                    <div className="flex items-start justify-between gap-3">
+            <h1 className={`text-xl font-bold ${textCls}`}>المطورون ({developers.length})</h1>
+            <div className={cardCls + ' overflow-hidden'}>
+              {developers.length === 0
+                ? <p className={`text-center text-sm py-8 ${mutedCls}`}>لا يوجد مطورون بعد</p>
+                : developers.map(dev => (
+                  <div key={dev.id} className={`px-4 py-4 ${rowCls}`}>
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-xl bg-neutral-100 dark:bg-neutral-800 flex items-center justify-center font-bold text-neutral-500 shrink-0">
+                        {(dev.store_name || dev.full_name || 'D').charAt(0).toUpperCase()}
+                      </div>
                       <div className="flex-1 min-w-0">
-                        <span className={"text-sm font-semibold " + textCls}>{'بلاغ #' + f.id.slice(-6).toUpperCase()}</span>
-                        <div className="inline-flex items-center gap-1 bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 text-xs font-medium px-2.5 py-1 rounded-lg mt-1 mb-1">
-                          <Flag size={10} />{reasonLabel[f.reason] || f.reason || 'بدون سبب'}
+                        <p className={`font-medium text-sm ${textCls}`}>{dev.store_name || dev.full_name || '—'}</p>
+                        <p className={`text-xs ${mutedCls}`}>{dev.email}</p>
+                        <div className="flex items-center gap-3 mt-1">
+                          <span className={`text-xs ${mutedCls}`}>رصيد: ${dev.wallets?.balance?.toFixed(2) || '0.00'}</span>
+                          <span className={`text-xs ${mutedCls}`}>مجموع: ${dev.wallets?.total_earned?.toFixed(2) || '0.00'}</span>
                         </div>
-                        <div className={"text-[10px] " + mutedCls}>{new Date(f.created_at).toLocaleDateString('ar-MA')}</div>
                       </div>
-                      <div className="flex flex-col gap-2 shrink-0">
-                        <button onClick={() => setSelectedFlag(f)} className="px-3 py-1.5 bg-blue-50 text-blue-600 dark:bg-blue-900/20 dark:text-blue-400 text-xs font-medium rounded-xl">التفاصيل</button>
-                        <button onClick={() => resolveFlag(f.id)} className="px-3 py-1.5 bg-neutral-900 dark:bg-white text-white dark:text-neutral-900 text-xs font-medium rounded-xl">معالجة</button>
-                      </div>
+                      {dev.is_verified && (
+                        <span className="text-[10px] bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 px-2 py-1 rounded-full font-medium shrink-0">
+                          موثق ✓
+                        </span>
+                      )}
                     </div>
                   </div>
                 ))
@@ -681,155 +515,31 @@ export default function AdminPage() {
           </div>
         )}
 
-        {/* ORDERS */}
-        {tab === 'orders' && (
+        {/* PURCHASES */}
+        {tab === 'purchases' && (
           <div className="space-y-4">
-            <h1 className={titleCls}>جميع الطلبات</h1>
-            <div className={cardCls + " overflow-hidden"}>
-              {recentOrders.length === 0
-                ? <p className={"text-center text-sm py-8 " + mutedCls}>لا توجد طلبات</p>
-                : recentOrders.map((o: any) => (
-                  <div key={o.id} className={"flex items-center gap-3 px-4 py-3 " + rowCls}>
-                    <div className="flex-1">
-                      <div className={"text-sm font-medium " + textCls}>#{o.id.slice(-6).toUpperCase()}</div>
-                      <div className={"text-xs " + mutedCls}>{new Date(o.created_at).toLocaleDateString('ar-MA')}</div>
+            <h1 className={`text-xl font-bold ${textCls}`}>المبيعات الأخيرة</h1>
+            <div className={cardCls + ' overflow-hidden'}>
+              {purchases.length === 0
+                ? <p className={`text-center text-sm py-8 ${mutedCls}`}>لا توجد مبيعات بعد</p>
+                : purchases.map(p => (
+                  <div key={p.id} className={`flex items-center gap-3 px-4 py-3 ${rowCls}`}>
+                    <div className="flex-1 min-w-0">
+                      <p className={`text-sm font-medium truncate ${textCls}`}>{p.digital_products?.title || '—'}</p>
+                      <p className={`text-xs ${mutedCls}`}>
+                        {p.profiles?.full_name || 'مشتري'} · {new Date(p.created_at).toLocaleDateString('ar-MA')}
+                      </p>
                     </div>
-                    <div className={"text-sm font-bold " + textCls}>{o.total?.toLocaleString()} د.م.</div>
-                    <span className={`text-xs px-2.5 py-1 rounded-xl font-medium ${o.status === 'delivered' ? 'bg-green-50 text-green-600 dark:bg-green-900/20 dark:text-green-400' : o.status === 'pending' ? 'bg-amber-50 text-amber-600 dark:bg-amber-900/20 dark:text-amber-400' : 'bg-neutral-100 dark:bg-neutral-800 text-neutral-500'}`}>{o.status}</span>
-                    <button onClick={() => handleAdminInvoice(o)} disabled={generatingPdf === o.id}
-                      className="flex items-center gap-1.5 px-3 py-1.5 bg-neutral-900 dark:bg-white text-white dark:text-neutral-900 text-xs font-medium rounded-xl disabled:opacity-50 shrink-0">
-                      <FileText size={12} />
-                      {generatingPdf === o.id ? '...' : 'PDF'}
-                    </button>
-                  </div>
-                ))
-              }
-            </div>
-          </div>
-        )}
-
-        {/* Flag Modal */}
-        {selectedFlag && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4"
-            onClick={(e) => { if (e.target === e.currentTarget) setSelectedFlag(null) }}>
-            <div className="bg-white dark:bg-neutral-900 rounded-3xl w-full max-w-md p-6 shadow-2xl">
-              <div className="flex items-center justify-between mb-5">
-                <h3 className={"font-bold text-lg " + textCls}>تفاصيل البلاغ</h3>
-                <button onClick={() => setSelectedFlag(null)} className="p-1.5 rounded-xl hover:bg-neutral-100 dark:hover:bg-neutral-800">
-                  <XCircle size={20} className="text-neutral-400" />
-                </button>
-              </div>
-              <div className="space-y-3">
-                <div className={"rounded-2xl p-4 bg-neutral-50 dark:bg-neutral-800"}>
-                  <span className={"text-xs font-medium " + mutedCls}>رقم البلاغ</span>
-                  <p className={"font-semibold text-sm mt-1 " + textCls}>#{selectedFlag.id.slice(-6).toUpperCase()}</p>
-                </div>
-                <div className="rounded-2xl p-4 bg-red-50 dark:bg-red-900/20">
-                  <span className="text-xs font-medium text-red-500">سبب البلاغ</span>
-                  <p className="font-semibold text-sm text-red-700 dark:text-red-300 mt-1">{reasonLabel[selectedFlag.reason] || selectedFlag.reason || 'بدون سبب'}</p>
-                </div>
-                {selectedFlag.details && (
-                  <div className={"rounded-2xl p-4 bg-neutral-50 dark:bg-neutral-800"}>
-                    <span className={"text-xs font-medium " + mutedCls}>تفاصيل</span>
-                    <p className={"text-sm mt-1 " + textCls}>{selectedFlag.details}</p>
-                  </div>
-                )}
-                <div className={"rounded-2xl p-4 bg-neutral-50 dark:bg-neutral-800"}>
-                  <span className={"text-xs font-medium " + mutedCls}>التاريخ</span>
-                  <p className={"text-sm mt-1 " + textCls}>{new Date(selectedFlag.created_at).toLocaleDateString('ar-MA', { year: 'numeric', month: 'long', day: 'numeric' })}</p>
-                </div>
-                <a href={`/ar/product/${selectedFlag.product_id}`} target="_blank" rel="noreferrer"
-                  className="flex items-center gap-2 text-sm text-blue-500 hover:text-blue-600">
-                  <ExternalLink size={14} /> عرض المنتج
-                </a>
-              </div>
-              <div className="flex gap-3 mt-5">
-                <button onClick={() => { resolveFlag(selectedFlag.id); setSelectedFlag(null) }}
-                  className="flex-1 py-3 bg-neutral-900 dark:bg-white text-white dark:text-neutral-900 font-semibold rounded-xl text-sm">
-                  معالجة البلاغ ✅
-                </button>
-                <button onClick={() => setSelectedFlag(null)} className="px-4 py-3 bg-neutral-100 dark:bg-neutral-800 text-neutral-600 dark:text-neutral-400 font-medium rounded-xl text-sm">
-                  إغلاق
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* ANALYTICS */}
-        {tab === 'analytics' && (
-          <div className="space-y-4">
-            <h1 className={titleCls}>الإحصائيات</h1>
-            <div className={cardCls + " p-6 text-center"}>
-              <TrendingUp size={40} className={"mx-auto mb-3 " + mutedCls} />
-              <p className={"text-sm mb-4 " + mutedCls}>عرض الإحصائيات المبيانية التفصيلية للموقع</p>
-              <a href="/ar/admin/analytics"
-                className="inline-flex items-center gap-2 px-5 py-3 bg-neutral-900 dark:bg-white text-white dark:text-neutral-900 rounded-xl text-sm font-semibold hover:opacity-90 transition-opacity">
-                <TrendingUp size={15} />
-                فتح صفحة الإحصائيات
-              </a>
-            </div>
-          </div>
-        )}
-        {/* RATINGS */}
-        {tab === 'ratings' && (
-          <div className="space-y-6">
-            <h1 className={titleCls}>التقييمات</h1>
-
-            {/* تقييمات الموقع */}
-            <div className={cardCls + " overflow-hidden"}>
-              <div className={"px-4 py-3 border-b border-neutral-50 dark:border-neutral-800 flex items-center justify-between"}>
-                <h2 className={"font-semibold text-sm " + textCls}>تقييمات الموقع</h2>
-                <span className={"text-xs " + mutedCls}>{siteRatings.length} تقييم</span>
-              </div>
-              {siteRatings.length === 0
-                ? <p className={"text-center text-sm py-6 " + mutedCls}>لا توجد تقييمات</p>
-                : siteRatings.map((r: any) => (
-                  <div key={r.id} className={"px-4 py-3 " + rowCls}>
-                    <div className="flex items-center justify-between mb-1">
-                      <span className={"text-sm font-medium " + textCls}>
-                        مستخدم #{r.user_id?.slice(-6).toUpperCase()}
+                    <div className="text-end shrink-0">
+                      <p className={`text-sm font-bold ${textCls}`}>${p.amount?.toFixed(2)}</p>
+                      <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium ${
+                        p.status === 'completed' ? 'bg-green-50 text-green-600 dark:bg-green-900/20 dark:text-green-400' :
+                        p.status === 'escrow' ? 'bg-amber-50 text-amber-600' :
+                        'bg-neutral-100 text-neutral-500'
+                      }`}>
+                        {p.status === 'completed' ? 'مكتمل' : p.status === 'escrow' ? 'Escrow' : p.status}
                       </span>
-                      <div className="flex items-center gap-1">
-                        {[1,2,3,4,5].map(i => (
-                          <Star key={i} size={13} className={i <= r.rating ? 'text-amber-400 fill-amber-400' : 'text-neutral-200 dark:text-neutral-700'} />
-                        ))}
-                      </div>
                     </div>
-                    {r.comment && <p className={"text-xs " + mutedCls}>{r.comment}</p>}
-                    <p className={"text-[10px] mt-1 " + mutedCls}>{new Date(r.created_at).toLocaleDateString('ar-MA')}</p>
-                  </div>
-                ))
-              }
-            </div>
-
-            {/* تقييمات البائعين */}
-            <div className={cardCls + " overflow-hidden"}>
-              <div className={"px-4 py-3 border-b border-neutral-50 dark:border-neutral-800 flex items-center justify-between"}>
-                <h2 className={"font-semibold text-sm " + textCls}>تقييمات البائعين</h2>
-                <span className={"text-xs " + mutedCls}>{sellerRatings.length} تقييم</span>
-              </div>
-              {sellerRatings.length === 0
-                ? <p className={"text-center text-sm py-6 " + mutedCls}>لا توجد تقييمات</p>
-                : sellerRatings.map((r: any) => (
-                  <div key={r.id} className={"px-4 py-3 " + rowCls}>
-                    <div className="flex items-center justify-between mb-1">
-                      <div>
-                        <span className={"text-sm font-medium " + textCls}>
-                          بائع #{r.seller_id?.slice(-6).toUpperCase()}
-                        </span>
-                        <span className={"text-xs ms-2 " + mutedCls}>
-                          من مشتري #{r.buyer_id?.slice(-6).toUpperCase()}
-                        </span>
-                      </div>
-                      <div className="flex items-center gap-1">
-                        {[1,2,3,4,5].map(i => (
-                          <Star key={i} size={13} className={i <= r.rating ? 'text-amber-400 fill-amber-400' : 'text-neutral-200 dark:text-neutral-700'} />
-                        ))}
-                      </div>
-                    </div>
-                    {r.comment && <p className={"text-xs " + mutedCls}>{r.comment}</p>}
-                    <p className={"text-[10px] mt-1 " + mutedCls}>{new Date(r.created_at).toLocaleDateString('ar-MA')}</p>
                   </div>
                 ))
               }
@@ -837,80 +547,137 @@ export default function AdminPage() {
           </div>
         )}
 
-        {/* CONTACT */}
-        {tab === 'contact' && (
-          <div className="space-y-4 max-w-lg">
-            <h1 className={titleCls}>معلومات التواصل</h1>
-            <p className={"text-sm " + mutedCls}>هذه المعلومات تظهر في صفحة "تواصل معنا" للزوار</p>
-
-            <div className={cardCls + " p-4 space-y-4"}>
-              {[
-                { key: 'email', icon: Mail, label: 'البريد الإلكتروني', placeholder: 'support@wibya.com', dir: 'ltr' },
-                { key: 'phone', icon: Phone, label: 'رقم الهاتف', placeholder: '+212 6XX-XXXXXX', dir: 'ltr' },
-                { key: 'whatsapp', icon: MessageCircle, label: 'واتساب', placeholder: '+212 6XX-XXXXXX', dir: 'ltr' },
-                { key: 'address', icon: MapPin, label: 'العنوان', placeholder: 'المغرب', dir: 'rtl' },
-              ].map(({ key, icon: Icon, label, placeholder, dir }) => (
-                <div key={key}>
-                  <label className={"text-xs font-medium mb-1 block flex items-center gap-1.5 " + mutedCls}>
-                    <Icon size={12} /> {label}
-                  </label>
-                  <input
-                    value={(contactInfo as any)[key]}
-                    onChange={e => setContactInfo(prev => ({ ...prev, [key]: e.target.value }))}
-                    className="w-full px-4 py-3 rounded-2xl text-sm bg-neutral-50 dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 text-neutral-900 dark:text-white outline-none focus:border-neutral-400 transition-colors"
-                    placeholder={placeholder}
-                    dir={dir as any}
-                  />
+        {/* DISPUTES */}
+        {tab === 'disputes' && (
+          <div className="space-y-4">
+            <h1 className={`text-xl font-bold ${textCls}`}>النزاعات المفتوحة ({disputes.length})</h1>
+            {disputes.length === 0 ? (
+              <div className={cardCls + ' p-8 text-center'}>
+                <Flag size={36} className="text-neutral-300 mx-auto mb-3" />
+                <p className={`text-sm ${mutedCls}`}>لا توجد نزاعات مفتوحة 🎉</p>
+              </div>
+            ) : disputes.map(d => (
+              <div key={d.id} className={cardCls + ' p-4'}>
+                <div className="flex items-start justify-between mb-3">
+                  <div>
+                    <p className={`font-semibold text-sm ${textCls}`}>نزاع #{d.id.slice(-6).toUpperCase()}</p>
+                    <p className={`text-xs ${mutedCls} mt-0.5`}>
+                      المشتري: {d['profiles!buyer_id']?.full_name || '—'} ·
+                      المطور: {d['profiles!developer_id']?.store_name || d['profiles!developer_id']?.full_name || '—'}
+                    </p>
+                    <p className={`text-xs ${mutedCls}`}>
+                      المبلغ: ${d.purchases?.amount?.toFixed(2)} ·
+                      الموعد النهائي: {new Date(d.deadline).toLocaleDateString('ar-MA')}
+                    </p>
+                  </div>
+                  <span className={`text-[10px] px-2 py-1 rounded-full font-medium ${
+                    d.status === 'open' ? 'bg-red-50 text-red-600' : 'bg-amber-50 text-amber-600'
+                  }`}>
+                    {d.status === 'open' ? 'مفتوح' : 'قيد المراجعة'}
+                  </span>
                 </div>
-              ))}
 
-              <button
-                disabled={savingContact}
-                onClick={async () => {
-                  setSavingContact(true)
-                  const supabase = createClient()
-                  await Promise.all([
-                    supabase.from('site_settings').upsert({ key: 'contact_email', value: contactInfo.email, updated_at: new Date().toISOString() }),
-                    supabase.from('site_settings').upsert({ key: 'contact_phone', value: contactInfo.phone, updated_at: new Date().toISOString() }),
-                    supabase.from('site_settings').upsert({ key: 'contact_whatsapp', value: contactInfo.whatsapp, updated_at: new Date().toISOString() }),
-                    supabase.from('site_settings').upsert({ key: 'contact_address', value: contactInfo.address, updated_at: new Date().toISOString() }),
-                  ])
-                  toast.success('تم حفظ معلومات التواصل ✅')
-                  setSavingContact(false)
-                }}
-                className="w-full py-3 bg-neutral-900 dark:bg-white text-white dark:text-neutral-900 font-semibold rounded-2xl flex items-center justify-center gap-2 text-sm disabled:opacity-50">
-                <Save size={15} />
-                {savingContact ? 'جاري الحفظ...' : 'حفظ المعلومات'}
-              </button>
-            </div>
+                <div className="bg-neutral-50 dark:bg-neutral-800 rounded-xl p-3 mb-3">
+                  <p className={`text-xs font-semibold ${textCls} mb-1`}>السبب: {d.reason}</p>
+                  <p className={`text-xs ${mutedCls}`}>{d.description}</p>
+                  {d.evidence_images?.length > 0 && (
+                    <p className={`text-xs text-blue-500 mt-1`}>📎 {d.evidence_images.length} صورة كدليل</p>
+                  )}
+                </div>
 
-            <div className={cardCls + " p-4"}>
-              <h2 className={"font-semibold text-sm mb-3 " + textCls}>معاينة</h2>
-              <div className="space-y-2">
-                {[
-                  { icon: Mail, value: contactInfo.email },
-                  { icon: Phone, value: contactInfo.phone },
-                  { icon: MessageCircle, value: contactInfo.whatsapp },
-                  { icon: MapPin, value: contactInfo.address },
-                ].map(({ icon: Icon, value }, i) => (
-                  <div key={i} className="flex items-center gap-3 bg-neutral-50 dark:bg-neutral-800 rounded-xl px-3 py-2.5">
-                    <Icon size={14} className="text-neutral-400 shrink-0" />
-                    <span className={"text-sm " + textCls}>{value || '—'}</span>
-                  </div>
-                ))}
+                <div className="flex gap-2">
+                  <button onClick={() => resolveDispute(d.id, 'resolved_buyer', 'قرار الأدمن: لصالح المشتري')}
+                    className="flex-1 py-2.5 bg-blue-500 text-white text-xs font-semibold rounded-xl hover:bg-blue-600 transition-colors">
+                    لصالح المشتري
+                  </button>
+                  <button onClick={() => resolveDispute(d.id, 'resolved_developer', 'قرار الأدمن: لصالح المطور')}
+                    className="flex-1 py-2.5 bg-green-500 text-white text-xs font-semibold rounded-xl hover:bg-green-600 transition-colors">
+                    لصالح المطور
+                  </button>
+                </div>
               </div>
-            </div>
+            ))}
           </div>
         )}
 
+        {/* WITHDRAWALS */}
+        {tab === 'withdrawals' && (
+          <div className="space-y-4">
+            <h1 className={`text-xl font-bold ${textCls}`}>طلبات السحب ({withdrawals.length})</h1>
+            {withdrawals.length === 0 ? (
+              <div className={cardCls + ' p-8 text-center'}>
+                <Wallet size={36} className="text-neutral-300 mx-auto mb-3" />
+                <p className={`text-sm ${mutedCls}`}>لا توجد طلبات سحب معلقة</p>
+              </div>
+            ) : withdrawals.map(w => (
+              <div key={w.id} className={cardCls + ' p-4'}>
+                <div className="flex items-center justify-between mb-3">
+                  <div>
+                    <p className={`font-semibold text-sm ${textCls}`}>
+                      {w.profiles?.store_name || w.profiles?.full_name || '—'}
+                    </p>
+                    <p className={`text-xs ${mutedCls}`}>{w.paypal_email}</p>
+                    <p className={`text-xs ${mutedCls}`}>{new Date(w.created_at).toLocaleDateString('ar-MA')}</p>
+                  </div>
+                  <p className="text-xl font-bold text-green-600">${w.amount?.toFixed(2)}</p>
+                </div>
+                <div className="bg-amber-50 dark:bg-amber-900/20 rounded-xl p-3 mb-3">
+                  <p className="text-xs text-amber-700 dark:text-amber-300">
+                    ⚠️ تأكد من تحويل المبلغ لـ PayPal: <strong>{w.paypal_email}</strong> قبل الموافقة
+                  </p>
+                </div>
+                <div className="flex gap-2">
+                  <button onClick={() => processWithdrawal(w.id, true)}
+                    className="flex-1 py-2.5 bg-green-500 text-white text-xs font-semibold rounded-xl">
+                    ✅ موافقة وتحويل
+                  </button>
+                  <button onClick={() => processWithdrawal(w.id, false)}
+                    className="flex-1 py-2.5 bg-red-50 text-red-600 text-xs font-semibold rounded-xl">
+                    ❌ رفض
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* REVIEWS */}
+        {tab === 'reviews' && (
+          <div className="space-y-4">
+            <h1 className={`text-xl font-bold ${textCls}`}>التقييمات</h1>
+            <div className={cardCls + ' overflow-hidden'}>
+              {reviews.length === 0
+                ? <p className={`text-center text-sm py-8 ${mutedCls}`}>لا توجد تقييمات بعد</p>
+                : reviews.map(r => (
+                  <div key={r.id} className={`px-4 py-3 ${rowCls}`}>
+                    <div className="flex items-center justify-between mb-1">
+                      <p className={`text-sm font-medium truncate ${textCls}`}>{r.digital_products?.title || '—'}</p>
+                      <div className="flex items-center gap-1 shrink-0">
+                        {[1,2,3,4,5].map(i => (
+                          <Star key={i} size={12} className={i <= r.rating ? 'text-amber-400 fill-amber-400' : 'text-neutral-200'} />
+                        ))}
+                      </div>
+                    </div>
+                    <p className={`text-xs ${mutedCls}`}>{r.profiles?.full_name || 'مستخدم'}</p>
+                    {r.comment && <p className={`text-xs ${mutedCls} mt-1`}>{r.comment}</p>}
+                  </div>
+                ))
+              }
+            </div>
+          </div>
+        )}
       </div>
 
-      {/* Mobile nav */}
+      {/* Mobile Nav */}
       <nav className="md:hidden fixed bottom-0 start-0 end-0 bg-neutral-950 border-t border-neutral-800 flex z-50 overflow-x-auto">
         {TABS.map(({ key, icon: Icon, label }) => (
           <button key={key} onClick={() => setTab(key)}
-            className={`flex-1 flex flex-col items-center gap-0.5 py-2 text-[9px] font-medium transition-colors min-w-[50px] ${tab === key ? 'text-white' : 'text-neutral-500'}`}>
-            <Icon size={16} strokeWidth={tab === key ? 2.5 : 1.8} />{label}
+            className={`flex-1 flex flex-col items-center gap-0.5 py-2 text-[9px] font-medium transition-colors min-w-[50px] relative ${tab === key ? 'text-white' : 'text-neutral-500'}`}>
+            <Icon size={16} strokeWidth={tab === key ? 2.5 : 1.8} aria-hidden="true" />
+            {label}
+            {key === 'products' && stats.pendingProducts > 0 && (
+              <span className="absolute top-1 end-1 w-2 h-2 bg-amber-500 rounded-full" />
+            )}
           </button>
         ))}
       </nav>
