@@ -5,17 +5,20 @@ import { createServerClient } from '@supabase/ssr'
 
 const intlMiddleware = createMiddleware(routing)
 
-const SELLER_ROUTES = ['/ar/seller', '/fr/seller']
-const ADVERTISER_ROUTES = ['/ar/advertiser', '/fr/advertiser']
+const DEVELOPER_ROUTES = ['/ar/developer', '/fr/developer']
+const ADMIN_ROUTES = ['/ar/admin', '/fr/admin']
+const PROTECTED_ROUTES = ['/ar/purchases', '/fr/purchases', '/ar/wishlist', '/fr/wishlist']
 
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl
 
-  const isSellerRoute = SELLER_ROUTES.some(r => pathname.startsWith(r))
-  const isAdvertiserRoute = ADVERTISER_ROUTES.some(r => pathname.startsWith(r))
+  const isDeveloperRoute = DEVELOPER_ROUTES.some(r => pathname.startsWith(r))
+  const isAdminRoute = ADMIN_ROUTES.some(r => pathname.startsWith(r))
+  const isProtectedRoute = PROTECTED_ROUTES.some(r => pathname.startsWith(r))
 
-  if (isSellerRoute || isAdvertiserRoute) {
+  if (isDeveloperRoute || isAdminRoute || isProtectedRoute) {
     let response = NextResponse.next({ request })
+
     const supabase = createServerClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
       process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
@@ -30,13 +33,44 @@ export async function middleware(request: NextRequest) {
         },
       }
     )
+
     const { data: { user } } = await supabase.auth.getUser()
+
     if (!user) {
       const locale = pathname.startsWith('/fr') ? 'fr' : 'ar'
       const loginUrl = new URL(`/${locale}/auth/login`, request.url)
       loginUrl.searchParams.set('redirect', pathname)
       return NextResponse.redirect(loginUrl)
     }
+
+    // فحص role للأدمن والمطور
+    if (isAdminRoute || isDeveloperRoute) {
+      const adminSupabase = createServerClient(
+        process.env.NEXT_PUBLIC_SUPABASE_URL!,
+        process.env.SUPABASE_SERVICE_ROLE_KEY!,
+        {
+          cookies: {
+            getAll() { return request.cookies.getAll() },
+            setAll() {},
+          },
+        }
+      )
+
+      const { data: profile } = await adminSupabase
+        .from('profiles')
+        .select('role')
+        .eq('id', user.id)
+        .single()
+
+      if (isAdminRoute && profile?.role !== 'admin') {
+        return NextResponse.redirect(new URL('/ar', request.url))
+      }
+
+      if (isDeveloperRoute && profile?.role !== 'developer' && profile?.role !== 'admin') {
+        return NextResponse.redirect(new URL('/ar', request.url))
+      }
+    }
+
     return response
   }
 
