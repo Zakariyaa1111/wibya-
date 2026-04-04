@@ -145,7 +145,7 @@ export default async function HomePage() {
             </div>
             <div className="grid grid-cols-1 gap-3">
               {featured.map(product => (
-                <ProductCard key={product.id} product={product} featured />
+                <ProductCard key={product.id} product={product as any} featured />
               ))}
             </div>
           </section>

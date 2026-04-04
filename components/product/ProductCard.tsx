@@ -8,17 +8,13 @@ interface ProductCardProps {
     title: string
     price: number
     original_price?: number | null
-    preview_images?: string[]
-    category?: string
-    average_rating?: number
-    sales_count?: number
-    quality_badge?: boolean
+    preview_images?: string[] | null
+    category?: string | null
+    average_rating?: number | null
+    sales_count?: number | null
+    quality_badge?: boolean | null
     claude_score?: number | null
-    profiles?: {
-      full_name?: string | null
-      store_name?: string | null
-      is_verified?: boolean
-    } | null
+    profiles?: { full_name?: string | null; store_name?: string | null; is_verified?: boolean | null } | { full_name?: string | null; store_name?: string | null; is_verified?: boolean | null }[] | null
   }
   featured?: boolean
 }
@@ -28,7 +24,11 @@ export function ProductCard({ product, featured = false }: ProductCardProps) {
     ? Math.round((1 - product.price / product.original_price) * 100)
     : null
 
-  const developer = product.profiles
+  // ✅ يتعامل مع profiles كـ object أو array
+  const developer = Array.isArray(product.profiles)
+    ? product.profiles[0]
+    : product.profiles
+
   const developerName = developer?.store_name || developer?.full_name || 'مطور'
 
   return (
@@ -51,7 +51,6 @@ export function ProductCard({ product, featured = false }: ProductCardProps) {
             </div>
           )}
 
-          {/* Badges overlay */}
           {!featured && (
             <div className="absolute top-2 start-2 flex flex-col gap-1">
               {product.quality_badge && (
@@ -70,7 +69,6 @@ export function ProductCard({ product, featured = false }: ProductCardProps) {
 
         {/* Content */}
         <div className={`${featured ? 'flex-1 min-w-0' : 'p-3'}`}>
-          {/* Category */}
           <div className="flex items-center gap-1.5 mb-1">
             <span className="text-[10px] text-neutral-400 dark:text-neutral-500">{product.category}</span>
             {featured && product.quality_badge && (
@@ -80,12 +78,10 @@ export function ProductCard({ product, featured = false }: ProductCardProps) {
             )}
           </div>
 
-          {/* Title */}
           <h3 className={`font-semibold text-neutral-900 dark:text-white leading-snug ${featured ? 'text-sm line-clamp-2' : 'text-xs line-clamp-2 mb-2'}`}>
             {product.title}
           </h3>
 
-          {/* Developer */}
           <div className="flex items-center gap-1 mb-2">
             <span className="text-[10px] text-neutral-400 truncate">{developerName}</span>
             {developer?.is_verified && (
@@ -93,15 +89,14 @@ export function ProductCard({ product, featured = false }: ProductCardProps) {
             )}
           </div>
 
-          {/* Stats */}
           <div className="flex items-center gap-2 mb-2">
-            {product.average_rating !== undefined && product.average_rating > 0 && (
+            {product.average_rating != null && product.average_rating > 0 && (
               <div className="flex items-center gap-0.5">
                 <Star size={11} className="text-amber-400 fill-amber-400" aria-hidden="true" />
                 <span className="text-[10px] text-neutral-500">{product.average_rating.toFixed(1)}</span>
               </div>
             )}
-            {product.sales_count !== undefined && product.sales_count > 0 && (
+            {product.sales_count != null && product.sales_count > 0 && (
               <div className="flex items-center gap-0.5">
                 <Download size={10} className="text-neutral-400" aria-hidden="true" />
                 <span className="text-[10px] text-neutral-400">{product.sales_count}</span>
@@ -109,7 +104,6 @@ export function ProductCard({ product, featured = false }: ProductCardProps) {
             )}
           </div>
 
-          {/* Price */}
           <div className="flex items-center gap-2">
             <span className="font-bold text-neutral-900 dark:text-white text-sm">
               ${product.price}
