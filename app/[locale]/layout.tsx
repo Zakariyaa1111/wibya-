@@ -16,6 +16,13 @@ export const metadata: Metadata = {
   authors: [{ name: 'Wibya' }],
   creator: 'Wibya',
   metadataBase: new URL('https://wibya.com'),
+  alternates: {
+    canonical: 'https://wibya.com/ar',
+    languages: {
+      'ar': 'https://wibya.com/ar',
+      'fr': 'https://wibya.com/fr',
+    },
+  },
   openGraph: {
     type: 'website',
     locale: 'ar_MA',
