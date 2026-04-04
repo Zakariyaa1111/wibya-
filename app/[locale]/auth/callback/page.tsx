@@ -16,21 +16,39 @@ export default function AuthCallbackPage() {
         return
       }
 
-      // تحديث google_verified تلقائياً
+      // ✅ تحديث google_verified تلقائياً
       const isGoogleUser = user.app_metadata?.provider === 'google'
+
+      // ✅ جلب الـ role المحفوظ قبل OAuth
+      const pendingRole = localStorage.getItem('pending_role') as 'buyer' | 'developer' | null
+
+      // ✅ تحديث الملف الشخصي
+      const updateData: Record<string, any> = {}
       if (isGoogleUser) {
-        await supabase.from('profiles').update({
-          google_verified: true,
-          verified: true,
-        }).eq('id', user.id)
+        updateData.google_verified = true
+        updateData.is_verified = true
+      }
+      if (pendingRole && (pendingRole === 'buyer' || pendingRole === 'developer')) {
+        updateData.role = pendingRole
+      }
+      if (Object.keys(updateData).length > 0) {
+        await supabase.from('profiles').update(updateData).eq('id', user.id)
       }
 
-      // توجيه حسب الـ role
-      const { data: profile } = await supabase
-        .from('profiles').select('role').eq('id', user.id).single()
+      // تنظيف localStorage
+      localStorage.removeItem('pending_role')
 
-      if (profile?.role === 'admin') router.push('/ar/admin')
-      else if (profile?.role === 'seller') router.push('/ar/seller')
+      // ✅ توجيه حسب الـ role
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('role')
+        .eq('id', user.id)
+        .single()
+
+      const role = updateData.role || profile?.role
+
+      if (role === 'admin') router.push('/ar/admin')
+      else if (role === 'developer') router.push('/ar/developer/dashboard')
       else router.push('/ar')
     }
 
