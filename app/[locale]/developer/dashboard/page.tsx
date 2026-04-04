@@ -31,7 +31,6 @@ export default async function DeveloperDashboard() {
   const [
     { data: products },
     { data: recentSales },
-    { data: ratings },
   ] = await Promise.all([
     supabase.from('digital_products')
       .select('id, title, status, price, views_count, sales_count, average_rating, quality_badge, claude_score, created_at, preview_images, category')
@@ -42,12 +41,16 @@ export default async function DeveloperDashboard() {
       .eq('developer_id', user.id)
       .order('created_at', { ascending: false })
       .limit(5),
-    supabase.from('product_reviews')
-      .select('rating, comment, created_at, profiles(full_name), digital_products(title)')
-      .in('product_id', (products ?? []).map(p => p.id))
-      .order('created_at', { ascending: false })
-      .limit(5),
   ])
+
+  const productIds = (products ?? []).map((p: any) => p.id)
+  const { data: ratings } = productIds.length > 0
+    ? await supabase.from('product_reviews')
+        .select('rating, comment, created_at, profiles(full_name), digital_products(title)')
+        .in('product_id', productIds)
+        .order('created_at', { ascending: false })
+        .limit(5)
+    : { data: [] }
 
   const wallet = (profile as any)?.wallets
 
