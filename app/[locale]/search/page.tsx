@@ -1,171 +1,250 @@
 'use client'
 import { Suspense, useState, useEffect, useCallback } from 'react'
-import { useSearchParams, useRouter as useNextRouter } from 'next/navigation'
+import { useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
-import { useRouter } from '@/lib/i18n/navigation'
 import { TopBar } from '@/components/layout/TopBar'
 import { BottomNav } from '@/components/layout/BottomNav'
-import { Search, X, SlidersHorizontal, MapPin, Tag } from 'lucide-react'
-import Image from 'next/image'
-import Link from 'next/link'
+import { ProductCard } from '@/components/product/ProductCard'
+import { Search, SlidersHorizontal, X, Shield } from 'lucide-react'
 
-const CATEGORIES = ['الكل','إلكترونيات','سيارات','عقارات','ملابس','أثاث','رياضة','وظائف','خدمات','أخرى']
-const CITIES = ['الكل','الدار البيضاء','الرباط','فاس','مراكش','أكادير','طنجة','مكناس','وجدة','تطوان','سلا']
+const CATEGORIES = [
+  { key: '', label: 'الكل' },
+  { key: 'template', label: '🛍️ قوالب' },
+  { key: 'tool', label: '🔧 أدوات' },
+  { key: 'course', label: '🎓 دورات' },
+  { key: 'ui_kit', label: '🎨 UI Kit' },
+  { key: 'saas', label: '⚡ SaaS' },
+  { key: 'other', label: '📦 أخرى' },
+]
+
 const SORT_OPTIONS = [
   { key: 'newest', label: 'الأحدث' },
+  { key: 'top_selling', label: 'الأكثر مبيعاً' },
+  { key: 'top_rated', label: 'الأعلى تقييماً' },
   { key: 'price_asc', label: 'السعر: الأقل' },
   { key: 'price_desc', label: 'السعر: الأعلى' },
-  { key: 'popular', label: 'الأكثر مشاهدة' },
 ]
 
 function SearchContent() {
   const searchParams = useSearchParams()
-  const router = useRouter()
   const initialQuery = searchParams.get('q') || ''
+  const initialCategory = searchParams.get('category') || ''
 
   const [query, setQuery] = useState(initialQuery)
-  const [results, setResults] = useState<any[]>([])
-  const [loading, setLoading] = useState(false)
-  const [showFilters, setShowFilters] = useState(false)
-  const [category, setCategory] = useState('الكل')
-  const [city, setCity] = useState('الكل')
+  const [category, setCategory] = useState(initialCategory)
   const [sort, setSort] = useState('newest')
   const [minPrice, setMinPrice] = useState('')
   const [maxPrice, setMaxPrice] = useState('')
+  const [qualityOnly, setQualityOnly] = useState(false)
+  const [showFilters, setShowFilters] = useState(false)
+  const [results, setResults] = useState<any[]>([])
   const [total, setTotal] = useState(0)
+  const [loading, setLoading] = useState(false)
   const [page, setPage] = useState(0)
   const PAGE_SIZE = 12
 
-  const search = useCallback(async (q: string, reset = true) => {
-    if (!q.trim() && category === 'الكل' && city === 'الكل') {
-      setResults([]); setTotal(0); return
-    }
+  const search = useCallback(async (reset = true) => {
     setLoading(true)
     const currentPage = reset ? 0 : page
     if (reset) setPage(0)
 
     const supabase = createClient()
-    let query_builder = supabase
-      .from('products')
-      .select('id, name, price, images, city, condition, views_count, profiles(store_name, verified)', { count: 'exact' })
+    let q = supabase
+      .from('digital_products')
+      .select('id, title, price, original_price, preview_images, category, average_rating, sales_count, quality_badge, claude_score, profiles(full_name, store_name, is_verified)', { count: 'exact' })
       .eq('status', 'active')
 
-    if (q.trim()) query_builder = query_builder.ilike('name', `%${q.trim()}%`)
-    if (category !== 'الكل') query_builder = query_builder.eq('category', category)
-    if (city !== 'الكل') query_builder = query_builder.eq('city', city)
-    if (minPrice) query_builder = query_builder.gte('price', parseFloat(minPrice))
-    if (maxPrice) query_builder = query_builder.lte('price', parseFloat(maxPrice))
+    if (query.trim()) q = q.ilike('title', `%${query.trim()}%`)
+    if (category) q = q.eq('category', category)
+    if (minPrice) q = q.gte('price', parseFloat(minPrice))
+    if (maxPrice) q = q.lte('price', parseFloat(maxPrice))
+    if (qualityOnly) q = q.eq('quality_badge', true)
 
     switch (sort) {
-      case 'newest': query_builder = query_builder.order('created_at', { ascending: false }); break
-      case 'price_asc': query_builder = query_builder.order('price', { ascending: true }); break
-      case 'price_desc': query_builder = query_builder.order('price', { ascending: false }); break
-      case 'popular': query_builder = query_builder.order('views_count', { ascending: false }); break
+      case 'newest': q = q.order('created_at', { ascending: false }); break
+      case 'top_selling': q = q.order('sales_count', { ascending: false }); break
+      case 'top_rated': q = q.order('average_rating', { ascending: false }); break
+      case 'price_asc': q = q.order('price', { ascending: true }); break
+      case 'price_desc': q = q.order('price', { ascending: false }); break
     }
 
-    const { data, count } = await query_builder
-      .range(currentPage * PAGE_SIZE, (currentPage + 1) * PAGE_SIZE - 1)
-      .returns<any[]>()
+    const { data, count } = await q.range(currentPage * PAGE_SIZE, (currentPage + 1) * PAGE_SIZE - 1)
 
     if (reset) setResults(data ?? [])
     else setResults(prev => [...prev, ...(data ?? [])])
     setTotal(count ?? 0)
     setLoading(false)
-  }, [category, city, sort, minPrice, maxPrice, page])
+  }, [query, category, sort, minPrice, maxPrice, qualityOnly, page])
 
   useEffect(() => {
-    if (initialQuery) search(initialQuery)
+    search(true)
+  }, [category, sort, qualityOnly])
+
+  useEffect(() => {
+    if (initialQuery) search(true)
   }, [])
-
-  useEffect(() => {
-    if (query) search(query)
-    else if (category !== 'الكل' || city !== 'الكل') search('')
-  }, [category, city, sort])
 
   function handleSearch(e: React.FormEvent) {
     e.preventDefault()
-    search(query)
+    search(true)
   }
 
   function clearFilters() {
-    setCategory('الكل'); setCity('الكل'); setSort('newest')
-    setMinPrice(''); setMaxPrice('')
-    search(query)
+    setCategory('')
+    setSort('newest')
+    setMinPrice('')
+    setMaxPrice('')
+    setQualityOnly(false)
   }
 
-  const hasFilters = category !== 'الكل' || city !== 'الكل' || minPrice || maxPrice
+  const hasFilters = category || minPrice || maxPrice || qualityOnly || sort !== 'newest'
 
   return (
     <div className="min-h-screen bg-neutral-50 dark:bg-neutral-950">
       <TopBar />
+
+      {/* Search Bar */}
       <div className="sticky top-14 z-30 bg-white/95 dark:bg-neutral-950/95 backdrop-blur-xl border-b border-neutral-100 dark:border-neutral-800 px-4 py-3">
-        <form onSubmit={handleSearch} className="flex gap-2">
+        <form onSubmit={handleSearch} className="flex gap-2 mb-3">
           <div className="flex-1 relative">
-            <Search size={16} className="absolute start-3 top-1/2 -translate-y-1/2 text-neutral-400" />
+            <Search size={16} className="absolute start-3 top-1/2 -translate-y-1/2 text-neutral-400" aria-hidden="true" />
             <input
               value={query}
               onChange={e => setQuery(e.target.value)}
               placeholder="ابحث عن منتج..."
               autoFocus
               className="w-full ps-9 pe-4 py-2.5 bg-neutral-100 dark:bg-neutral-800 rounded-2xl text-sm text-neutral-900 dark:text-white placeholder-neutral-400 outline-none border border-transparent focus:border-neutral-300 dark:focus:border-neutral-600 transition-colors"
+              aria-label="البحث عن منتج"
             />
             {query && (
-              <button type="button" onClick={() => { setQuery(''); setResults([]); setTotal(0) }}
-                className="absolute end-3 top-1/2 -translate-y-1/2 text-neutral-400 hover:text-neutral-600">
-                <X size={14} />
+              <button
+                type="button"
+                onClick={() => { setQuery(''); search(true) }}
+                className="absolute end-3 top-1/2 -translate-y-1/2"
+                aria-label="مسح البحث"
+              >
+                <X size={14} className="text-neutral-400" aria-hidden="true" />
               </button>
             )}
           </div>
-          <button type="button" onClick={() => setShowFilters(!showFilters)}
-            className={`p-2.5 rounded-2xl border transition-colors relative ${showFilters || hasFilters ? 'bg-neutral-900 dark:bg-white border-neutral-900 dark:border-white text-white dark:text-neutral-900' : 'bg-neutral-100 dark:bg-neutral-800 border-transparent text-neutral-500'}`}>
-            <SlidersHorizontal size={16} />
-            {hasFilters && <span className="absolute -top-1 -end-1 w-3 h-3 bg-red-500 rounded-full" />}
+          <button
+            type="button"
+            onClick={() => setShowFilters(!showFilters)}
+            className={`p-2.5 rounded-2xl border transition-colors relative ${
+              showFilters || hasFilters
+                ? 'bg-neutral-900 dark:bg-white border-neutral-900 dark:border-white text-white dark:text-neutral-900'
+                : 'bg-neutral-100 dark:bg-neutral-800 border-transparent text-neutral-500'
+            }`}
+            aria-label="الفلاتر"
+            aria-expanded={showFilters}
+          >
+            <SlidersHorizontal size={16} aria-hidden="true" />
+            {hasFilters && <span className="absolute -top-1 -end-1 w-2.5 h-2.5 bg-red-500 rounded-full" aria-hidden="true" />}
           </button>
         </form>
 
-        {/* Filters */}
+        {/* Categories */}
+        <div className="flex gap-1.5 overflow-x-auto scrollbar-hide" role="list" aria-label="الفئات">
+          {CATEGORIES.map(cat => (
+            <button
+              key={cat.key}
+              onClick={() => setCategory(cat.key)}
+              role="listitem"
+              aria-pressed={category === cat.key}
+              className={`shrink-0 px-3 py-1.5 rounded-full text-xs font-medium transition-colors whitespace-nowrap ${
+                category === cat.key
+                  ? 'bg-neutral-900 dark:bg-white text-white dark:text-neutral-900'
+                  : 'bg-neutral-100 dark:bg-neutral-800 text-neutral-500 dark:text-neutral-400'
+              }`}
+            >
+              {cat.label}
+            </button>
+          ))}
+        </div>
+
+        {/* Advanced Filters */}
         {showFilters && (
-          <div className="mt-3 space-y-3">
-            {/* Categories */}
-            <div className="flex gap-1.5 overflow-x-auto scrollbar-hide pb-1">
-              {CATEGORIES.map(c => (
-                <button key={c} onClick={() => setCategory(c)}
-                  className={`shrink-0 px-3 py-1.5 rounded-full text-xs font-medium transition-colors ${category === c ? 'bg-neutral-900 dark:bg-white text-white dark:text-neutral-900' : 'bg-neutral-100 dark:bg-neutral-800 text-neutral-500 dark:text-neutral-400'}`}>
-                  {c}
-                </button>
-              ))}
+          <div className="mt-3 space-y-3 pt-3 border-t border-neutral-100 dark:border-neutral-800">
+            {/* Sort */}
+            <div>
+              <p className="text-xs font-medium text-neutral-500 dark:text-neutral-400 mb-2">الترتيب</p>
+              <div className="flex gap-1.5 overflow-x-auto scrollbar-hide">
+                {SORT_OPTIONS.map(opt => (
+                  <button
+                    key={opt.key}
+                    onClick={() => setSort(opt.key)}
+                    aria-pressed={sort === opt.key}
+                    className={`shrink-0 px-3 py-1.5 rounded-full text-xs transition-colors ${
+                      sort === opt.key
+                        ? 'bg-neutral-900 dark:bg-white text-white dark:text-neutral-900'
+                        : 'bg-neutral-100 dark:bg-neutral-800 text-neutral-500'
+                    }`}
+                  >
+                    {opt.label}
+                  </button>
+                ))}
+              </div>
             </div>
 
-            {/* Cities */}
-            <div className="flex gap-1.5 overflow-x-auto scrollbar-hide pb-1">
-              {CITIES.map(c => (
-                <button key={c} onClick={() => setCity(c)}
-                  className={`shrink-0 px-3 py-1.5 rounded-full text-xs font-medium transition-colors flex items-center gap-1 ${city === c ? 'bg-neutral-900 dark:bg-white text-white dark:text-neutral-900' : 'bg-neutral-100 dark:bg-neutral-800 text-neutral-500 dark:text-neutral-400'}`}>
-                  {c !== 'الكل' && <MapPin size={10} />}{c}
-                </button>
-              ))}
+            {/* Price Range */}
+            <div>
+              <p className="text-xs font-medium text-neutral-500 dark:text-neutral-400 mb-2">نطاق السعر (USD)</p>
+              <div className="flex gap-2">
+                <input
+                  value={minPrice}
+                  onChange={e => setMinPrice(e.target.value)}
+                  type="number"
+                  placeholder="من"
+                  className="flex-1 px-3 py-2 bg-neutral-100 dark:bg-neutral-800 rounded-xl text-xs text-neutral-900 dark:text-white outline-none"
+                  dir="ltr"
+                  aria-label="الحد الأدنى للسعر"
+                />
+                <input
+                  value={maxPrice}
+                  onChange={e => setMaxPrice(e.target.value)}
+                  type="number"
+                  placeholder="إلى"
+                  className="flex-1 px-3 py-2 bg-neutral-100 dark:bg-neutral-800 rounded-xl text-xs text-neutral-900 dark:text-white outline-none"
+                  dir="ltr"
+                  aria-label="الحد الأقصى للسعر"
+                />
+              </div>
             </div>
 
-            {/* Price + Sort */}
+            {/* Quality Badge Filter */}
+            <label className="flex items-center gap-3 cursor-pointer">
+              <div
+                onClick={() => setQualityOnly(!qualityOnly)}
+                className={`w-5 h-5 rounded-lg border-2 flex items-center justify-center transition-colors ${
+                  qualityOnly
+                    ? 'bg-green-500 border-green-500'
+                    : 'border-neutral-300 dark:border-neutral-600'
+                }`}
+                role="checkbox"
+                aria-checked={qualityOnly}
+                tabIndex={0}
+              >
+                {qualityOnly && <Shield size={12} className="text-white" aria-hidden="true" />}
+              </div>
+              <span className="text-sm text-neutral-700 dark:text-neutral-300 flex items-center gap-1.5">
+                <Shield size={13} className="text-green-500" aria-hidden="true" />
+                المنتجات المفحوصة فقط
+              </span>
+            </label>
+
+            {/* Apply / Clear */}
             <div className="flex gap-2">
-              <input value={minPrice} onChange={e => setMinPrice(e.target.value)}
-                className="flex-1 px-3 py-2 bg-neutral-100 dark:bg-neutral-800 rounded-xl text-xs text-neutral-900 dark:text-white outline-none"
-                placeholder="سعر من" type="number" dir="ltr" />
-              <input value={maxPrice} onChange={e => setMaxPrice(e.target.value)}
-                className="flex-1 px-3 py-2 bg-neutral-100 dark:bg-neutral-800 rounded-xl text-xs text-neutral-900 dark:text-white outline-none"
-                placeholder="سعر إلى" type="number" dir="ltr" />
-              <select value={sort} onChange={e => setSort(e.target.value)}
-                className="flex-1 px-3 py-2 bg-neutral-100 dark:bg-neutral-800 rounded-xl text-xs text-neutral-900 dark:text-white outline-none">
-                {SORT_OPTIONS.map(o => <option key={o.key} value={o.key}>{o.label}</option>)}
-              </select>
-            </div>
-
-            <div className="flex gap-2">
-              <button onClick={() => search(query)} className="flex-1 py-2 bg-neutral-900 dark:bg-white text-white dark:text-neutral-900 rounded-xl text-xs font-semibold">
-                تطبيق
+              <button
+                onClick={() => { search(true); setShowFilters(false) }}
+                className="flex-1 py-2.5 bg-neutral-900 dark:bg-white text-white dark:text-neutral-900 rounded-xl text-xs font-semibold"
+              >
+                تطبيق الفلاتر
               </button>
               {hasFilters && (
-                <button onClick={clearFilters} className="px-4 py-2 border border-neutral-200 dark:border-neutral-700 text-neutral-600 dark:text-neutral-400 rounded-xl text-xs">
+                <button
+                  onClick={() => { clearFilters(); search(true) }}
+                  className="px-4 py-2.5 border border-neutral-200 dark:border-neutral-700 text-neutral-600 dark:text-neutral-400 rounded-xl text-xs"
+                >
                   مسح
                 </button>
               )}
@@ -174,71 +253,53 @@ function SearchContent() {
         )}
       </div>
 
+      {/* Results */}
       <main className="pb-24 px-4 pt-4">
-        {/* Results count */}
-        {total > 0 && (
+        {/* Count */}
+        {(query || hasFilters) && (
           <p className="text-xs text-neutral-400 dark:text-neutral-500 mb-3">
-            {total.toLocaleString()} نتيجة {query && `لـ "${query}"`}
+            {total.toLocaleString()} نتيجة
+            {query && ` لـ "${query}"`}
           </p>
         )}
 
         {loading && results.length === 0 ? (
           <div className="grid grid-cols-2 gap-3">
-            {[1,2,3,4].map(i => (
-              <div key={i} className="bg-neutral-100 dark:bg-neutral-800 rounded-2xl animate-pulse h-52" />
+            {[1,2,3,4,5,6].map(i => (
+              <div key={i} className="bg-neutral-100 dark:bg-neutral-800 rounded-2xl animate-pulse aspect-[3/4]" />
             ))}
-          </div>
-        ) : results.length === 0 && (query || hasFilters) ? (
-          <div className="flex flex-col items-center justify-center py-20 text-center">
-            <Search size={40} className="text-neutral-300 dark:text-neutral-700 mb-3" />
-            <p className="font-semibold text-neutral-900 dark:text-white mb-1">لا توجد نتائج</p>
-            <p className="text-neutral-400 text-sm">جرب كلمات مختلفة أو غير الفلاتر</p>
           </div>
         ) : results.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-20 text-center">
-            <Search size={40} className="text-neutral-300 dark:text-neutral-700 mb-3" />
-            <p className="font-semibold text-neutral-900 dark:text-white mb-1">ابحث عن أي شيء</p>
-            <p className="text-neutral-400 text-sm">منتجات، فئات، مدن...</p>
+            <Search size={40} className="text-neutral-300 dark:text-neutral-700 mb-3" aria-hidden="true" />
+            <p className="font-semibold text-neutral-900 dark:text-white mb-1">
+              {query || hasFilters ? 'لا توجد نتائج' : 'ابحث عن أي منتج'}
+            </p>
+            <p className="text-neutral-400 text-sm">
+              {query || hasFilters ? 'جرب كلمات مختلفة أو غير الفلاتر' : 'قوالب، أدوات، دورات...'}
+            </p>
           </div>
         ) : (
           <>
             <div className="grid grid-cols-2 gap-3">
-              {results.map(p => (
-                <Link key={p.id} href={`/product/${p.id}`}>
-                  <div className="bg-white dark:bg-neutral-900 rounded-2xl border border-neutral-100 dark:border-neutral-800 overflow-hidden hover:border-neutral-300 dark:hover:border-neutral-600 transition-colors">
-                    <div className="aspect-square relative bg-neutral-100 dark:bg-neutral-800">
-                      {p.images?.[0] ? (
-                        <Image src={p.images[0]} alt={p.name} fill className="object-cover" sizes="(max-width: 768px) 50vw, 25vw" />
-                      ) : (
-                        <div className="w-full h-full flex items-center justify-center text-neutral-300">
-                          <Tag size={24} />
-                        </div>
-                      )}
-                    </div>
-                    <div className="p-3">
-                      <p className="text-xs font-medium text-neutral-800 dark:text-neutral-200 line-clamp-2 mb-1">{p.name}</p>
-                      <p className="text-sm font-bold text-neutral-900 dark:text-white">{p.price?.toLocaleString()} د.م.</p>
-                      {p.city && (
-                        <p className="text-[10px] text-neutral-400 flex items-center gap-0.5 mt-1">
-                          <MapPin size={9} />{p.city}
-                        </p>
-                      )}
-                    </div>
-                  </div>
-                </Link>
+              {results.map(product => (
+                <ProductCard key={product.id} product={product} />
               ))}
             </div>
 
             {results.length < total && (
-              <button onClick={() => { setPage(p => p + 1); search(query, false) }}
+              <button
+                onClick={() => { setPage(p => p + 1); search(false) }}
                 disabled={loading}
-                className="w-full mt-4 py-3 bg-neutral-100 dark:bg-neutral-800 text-neutral-600 dark:text-neutral-400 rounded-2xl text-sm font-medium hover:bg-neutral-200 dark:hover:bg-neutral-700 transition-colors disabled:opacity-50">
+                className="w-full mt-4 py-3 bg-neutral-100 dark:bg-neutral-800 text-neutral-600 dark:text-neutral-400 rounded-2xl text-sm font-medium hover:bg-neutral-200 dark:hover:bg-neutral-700 transition-colors disabled:opacity-50"
+              >
                 {loading ? 'جاري التحميل...' : `تحميل المزيد (${total - results.length} متبقي)`}
               </button>
             )}
           </>
         )}
       </main>
+
       <BottomNav />
     </div>
   )
@@ -246,7 +307,11 @@ function SearchContent() {
 
 export default function SearchPage() {
   return (
-    <Suspense fallback={<div className="min-h-screen flex items-center justify-center"><div className="w-6 h-6 border-2 border-neutral-200 border-t-neutral-900 rounded-full animate-spin" /></div>}>
+    <Suspense fallback={
+      <div className="min-h-screen flex items-center justify-center bg-neutral-50 dark:bg-neutral-950">
+        <div className="w-6 h-6 border-2 border-neutral-200 border-t-neutral-900 rounded-full animate-spin" />
+      </div>
+    }>
       <SearchContent />
     </Suspense>
   )
