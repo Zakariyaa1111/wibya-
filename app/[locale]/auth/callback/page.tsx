@@ -1,10 +1,8 @@
 'use client'
 import { useEffect } from 'react'
-import { useRouter } from '@/lib/i18n/navigation'
 import { createClient } from '@/lib/supabase/client'
 
 export default function AuthCallbackPage() {
-  const router = useRouter()
 
   useEffect(() => {
     async function handleCallback() {
@@ -12,44 +10,29 @@ export default function AuthCallbackPage() {
       const { data: { user }, error } = await supabase.auth.getUser()
 
       if (error || !user) {
-        router.push('/auth/login')
+        window.location.href = '/ar/auth/login'
         return
       }
 
-      // ✅ تحديث google_verified تلقائياً
       const isGoogleUser = user.app_metadata?.provider === 'google'
-
-      // ✅ جلب الـ role المحفوظ قبل OAuth
       const pendingRole = localStorage.getItem('pending_role') as 'buyer' | 'developer' | null
 
-      // ✅ تحديث الملف الشخصي
       const updateData: Record<string, any> = {}
-      if (isGoogleUser) {
-        updateData.google_verified = true
-        updateData.is_verified = true
-      }
-      if (pendingRole && (pendingRole === 'buyer' || pendingRole === 'developer')) {
-        updateData.role = pendingRole
-      }
+      if (isGoogleUser) updateData.is_verified = true
+      if (pendingRole === 'buyer' || pendingRole === 'developer') updateData.role = pendingRole
       if (Object.keys(updateData).length > 0) {
         await supabase.from('profiles').update(updateData).eq('id', user.id)
       }
-
-      // تنظيف localStorage
       localStorage.removeItem('pending_role')
 
-      // ✅ توجيه حسب الـ role
       const { data: profile } = await supabase
-        .from('profiles')
-        .select('role')
-        .eq('id', user.id)
-        .single()
+        .from('profiles').select('role').eq('id', user.id).single()
 
       const role = updateData.role || profile?.role
 
-      if (role === 'admin') router.push('/ar/admin')
-      else if (role === 'developer') router.push('/ar/developer/dashboard')
-      else router.push('/ar')
+      if (role === 'admin') window.location.href = '/ar/admin'
+      else if (role === 'developer') window.location.href = '/ar/developer/dashboard'
+      else window.location.href = '/ar'
     }
 
     handleCallback()
