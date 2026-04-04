@@ -1,225 +1,453 @@
+import { createClient } from '@/lib/supabase/server'
 import { notFound } from 'next/navigation'
 import Image from 'next/image'
-import { createClient } from '@/lib/supabase/server'
-import { getTranslations } from 'next-intl/server'
-import { Link } from '@/lib/i18n/navigation'
+import Link from 'next/link'
+import { ProductActions } from '@/components/product/ProductActions'
+import { ProductGallery } from '@/components/product/ProductGallery'
+import { TopBar } from '@/components/layout/TopBar'
+import { BottomNav } from '@/components/layout/BottomNav'
 import {
-  ArrowRight, ShieldCheck, MapPin, Package,
-  Heart, Share2, Flag, Store
+  Shield, Star, Download, Clock, Code2,
+  CheckCircle, Eye, FileText, Tag, Users,
+  BadgeCheck, AlertCircle, Package
 } from 'lucide-react'
-import { ProductActions } from './ProductActions'
-import { ProductGallery } from './ProductGallery'
 import type { Metadata } from 'next'
 
 interface Props {
-  params: Promise<{ id: string; locale: string }>
+  params: Promise<{ locale: string; id: string }>
 }
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { id } = await params
   const supabase = await createClient()
-  const { data } = await supabase.from('products').select('name,description').eq('id', id).single<{ name: string; description: string }>()
+  const { data: product } = await supabase
+    .from('digital_products')
+    .select('title, description, preview_images')
+    .eq('id', id)
+    .single()
+
+  if (!product) return { title: 'منتج غير موجود' }
+
   return {
-    title: data?.name ?? 'منتج',
-    description: data?.description ?? '',
+    title: product.title,
+    description: product.description?.slice(0, 160),
+    openGraph: {
+      title: product.title,
+      description: product.description?.slice(0, 160),
+      images: product.preview_images?.[0] ? [product.preview_images[0]] : [],
+    },
   }
 }
 
 export default async function ProductPage({ params }: Props) {
   const { id, locale } = await params
-  const t = await getTranslations('product')
   const supabase = await createClient()
 
+  // جلب المنتج
   const { data: product } = await supabase
-    .from('products')
-    .select(`*, profiles(id, store_name, store_image, city, verified, is_premium, total_sales)`)
+    .from('digital_products')
+    .select(`
+      *,
+      profiles (
+        id, full_name, store_name, store_image, bio,
+        website, github, twitter, is_verified,
+        followers_count, total_sales
+      ),
+      product_reviews (
+        id, rating, comment, created_at,
+        profiles (full_name, store_name)
+      )
+    `)
     .eq('id', id)
-    .single<any>()
+    .eq('status', 'active')
+    .single()
 
   if (!product) notFound()
 
-  await supabase.from('products').update({ views_count: (product.views_count ?? 0) + 1 } as any).eq('id', id)
+  // تحديث عداد المشاهدات
+  await supabase
+    .from('digital_products')
+    .update({ views_count: (product.views_count || 0) + 1 })
+    .eq('id', id)
 
-  const { data: similar } = await supabase
-    .from('products')
-    .select('id, name, price, images, city')
+  // هل المستخدم اشترى هذا المنتج؟
+  const { data: { user } } = await supabase.auth.getUser()
+  let hasPurchased = false
+  let isWishlisted = false
+
+  if (user) {
+    const [{ data: purchase }, { data: wish }] = await Promise.all([
+      supabase.from('purchases')
+        .select('id')
+        .eq('buyer_id', user.id)
+        .eq('product_id', id)
+        .in('status', ['completed', 'escrow'])
+        .single(),
+      supabase.from('wishlist')
+        .select('id')
+        .eq('user_id', user.id)
+        .eq('product_id', id)
+        .single(),
+    ])
+    hasPurchased = !!purchase
+    isWishlisted = !!wish
+  }
+
+  // منتجات مشابهة
+  const { data: similarProducts } = await supabase
+    .from('digital_products')
+    .select('id, title, price, preview_images, average_rating, sales_count, quality_badge')
     .eq('category', product.category)
     .eq('status', 'active')
     .neq('id', id)
-    .limit(6)
-    .returns<any[]>()
+    .limit(4)
 
-  const images: string[] = Array.isArray(product.images) ? product.images as string[] : []
-  const seller = product.profiles as any
+  const developer = product.profiles as any
+  const reviews = product.product_reviews as any[] ?? []
+  const isAr = locale === 'ar'
+  const title = isAr ? product.title : (product.title_fr || product.title)
+  const description = isAr ? product.description : (product.description_fr || product.description)
 
-  const conditionMap: Record<string, string> = {
-    new: locale === 'ar' ? 'جديد' : 'Neuf',
-    used: locale === 'ar' ? 'مستعمل' : 'Occasion',
-    refurbished: locale === 'ar' ? 'مُجدَّد' : 'Reconditionné',
-  }
-  const conditionLabel = conditionMap[product.condition] ?? product.condition
+  const discount = product.original_price
+    ? Math.round((1 - product.price / product.original_price) * 100)
+    : null
 
   return (
-    <div className="min-h-screen bg-white dark:bg-neutral-950">
-      {/* Header */}
-      <div className="sticky top-0 z-40 flex items-center justify-between px-4 h-14 bg-white/90 dark:bg-neutral-950/90 backdrop-blur-xl border-b border-neutral-100 dark:border-neutral-800">
-        <Link href="/" className="p-2 rounded-xl hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors">
-          <ArrowRight size={20} className="text-neutral-700 dark:text-neutral-300 rotate-180" />
-        </Link>
-        <div className="flex items-center gap-1">
-          <button className="p-2 rounded-xl hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors">
-            <Heart size={20} className="text-neutral-500 dark:text-neutral-400" strokeWidth={1.8} />
-          </button>
-          <button className="p-2 rounded-xl hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors">
-            <Share2 size={20} className="text-neutral-500 dark:text-neutral-400" strokeWidth={1.8} />
-          </button>
-          <button className="p-2 rounded-xl hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors">
-            <Flag size={20} className="text-neutral-400 dark:text-neutral-500" strokeWidth={1.8} />
-          </button>
-        </div>
-      </div>
+    <div className="min-h-screen bg-neutral-50 dark:bg-neutral-950">
+      <TopBar />
 
-      <ProductGallery images={images} name={product.name} />
+      <div className="max-w-2xl mx-auto pb-36">
 
-      <div className="px-4 pt-5 pb-32">
+        {/* Gallery */}
+        <ProductGallery
+          images={product.preview_images ?? []}
+          title={title}
+          videoUrl={product.preview_video}
+        />
 
-        {/* Badges */}
-        <div className="flex items-center gap-2 mb-3 flex-wrap">
-          <span className={`badge ${product.condition === 'new' ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' : 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400'}`}>
-            {conditionLabel}
-          </span>
-          {product.is_featured && <span className="badge bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400">⭐ مميز</span>}
-          {product.city && (
-            <span className="flex items-center gap-1 text-xs text-neutral-400 dark:text-neutral-500">
-              <MapPin size={11} />{product.city}
-            </span>
-          )}
-        </div>
+        <div className="px-4 py-4 space-y-4">
 
-        {/* Name */}
-        <h1 className="text-xl font-bold text-neutral-900 dark:text-white leading-snug mb-3">{product.name}</h1>
-
-        {/* Price */}
-        <div className="flex items-baseline gap-2 mb-4">
-          <span className="text-3xl font-bold text-neutral-900 dark:text-white">{product.price.toLocaleString()}</span>
-          <span className="text-neutral-500 dark:text-neutral-400 font-medium">{locale === 'ar' ? 'د.م.' : 'DH'}</span>
-          {product.original_price && product.original_price > product.price && (
-            <>
-              <span className="text-neutral-400 line-through text-base">{product.original_price.toLocaleString()}</span>
-              <span className="badge bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-400 text-xs">
-                -{Math.round((1 - product.price / product.original_price) * 100)}%
+          {/* Header */}
+          <div>
+            {/* Badges */}
+            <div className="flex flex-wrap items-center gap-2 mb-2">
+              <span className="text-xs bg-neutral-100 dark:bg-neutral-800 text-neutral-600 dark:text-neutral-400 px-2.5 py-1 rounded-full">
+                {product.category}
               </span>
-            </>
+              {product.quality_badge && (
+                <span className="flex items-center gap-1 text-xs bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-400 px-2.5 py-1 rounded-full font-medium">
+                  <Shield size={11} aria-hidden="true" />
+                  فحص الجودة Wibya
+                </span>
+              )}
+              {discount && discount > 0 && (
+                <span className="text-xs bg-red-600 text-white px-2.5 py-1 rounded-full font-bold">
+                  -{discount}%
+                </span>
+              )}
+            </div>
+
+            <h1 className="text-xl font-bold text-neutral-900 dark:text-white leading-tight mb-2">
+              {title}
+            </h1>
+
+            {/* Stats */}
+            <div className="flex flex-wrap items-center gap-4 text-xs text-neutral-500 dark:text-neutral-400">
+              {product.average_rating > 0 && (
+                <div className="flex items-center gap-1">
+                  <Star size={13} className="text-amber-400 fill-amber-400" aria-hidden="true" />
+                  <span className="font-medium text-neutral-700 dark:text-neutral-300">{product.average_rating.toFixed(1)}</span>
+                  <span>({product.ratings_count} تقييم)</span>
+                </div>
+              )}
+              <div className="flex items-center gap-1">
+                <Download size={13} aria-hidden="true" />
+                <span>{product.sales_count} مبيعة</span>
+              </div>
+              <div className="flex items-center gap-1">
+                <Eye size={13} aria-hidden="true" />
+                <span>{product.views_count} مشاهدة</span>
+              </div>
+              <div className="flex items-center gap-1">
+                <Clock size={13} aria-hidden="true" />
+                <span>v{product.version}</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Price */}
+          <div className="bg-white dark:bg-neutral-900 rounded-2xl border border-neutral-100 dark:border-neutral-800 p-4">
+            <div className="flex items-center gap-3 mb-1">
+              <span className="text-3xl font-bold text-neutral-900 dark:text-white">
+                ${product.price}
+              </span>
+              {product.original_price && (
+                <span className="text-lg text-neutral-400 line-through">
+                  ${product.original_price}
+                </span>
+              )}
+            </div>
+            <p className="text-xs text-neutral-400 dark:text-neutral-500">
+              دفعة واحدة · وصول دائم · بدون اشتراك
+            </p>
+          </div>
+
+          {/* Claude Report */}
+          {product.claude_report && product.claude_score !== null && (
+            <div className={`rounded-2xl border p-4 ${
+              product.claude_score >= 70
+                ? 'bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800'
+                : product.claude_score >= 50
+                ? 'bg-amber-50 dark:bg-amber-900/20 border-amber-200 dark:border-amber-800'
+                : 'bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800'
+            }`}>
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-2">
+                  <Shield size={16} className={product.claude_score >= 70 ? 'text-green-600' : product.claude_score >= 50 ? 'text-amber-600' : 'text-red-500'} aria-hidden="true" />
+                  <span className="text-sm font-bold text-neutral-900 dark:text-white">
+                    تقرير جودة Wibya
+                  </span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className={`text-lg font-bold ${product.claude_score >= 70 ? 'text-green-600' : product.claude_score >= 50 ? 'text-amber-600' : 'text-red-500'}`}>
+                    {product.claude_score}/100
+                  </span>
+                </div>
+              </div>
+
+              <p className="text-sm text-neutral-600 dark:text-neutral-400 mb-3">
+                {(product.claude_report as any).summary}
+              </p>
+
+              {(product.claude_report as any).strengths?.length > 0 && (
+                <div className="space-y-1.5">
+                  {(product.claude_report as any).strengths.map((s: string, i: number) => (
+                    <div key={i} className="flex items-start gap-2">
+                      <CheckCircle size={13} className="text-green-500 shrink-0 mt-0.5" aria-hidden="true" />
+                      <span className="text-xs text-neutral-600 dark:text-neutral-400">{s}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              <p className="text-[10px] text-neutral-400 dark:text-neutral-500 mt-3">
+                * هذا التقرير تحليل جودة تلقائي — ليس ضماناً أمنياً كاملاً
+              </p>
+            </div>
           )}
-        </div>
 
-        {/* Protection */}
-        <div className="flex items-center gap-3 bg-green-50 dark:bg-green-900/20 border border-green-100 dark:border-green-800 rounded-2xl p-3 mb-5">
-          <ShieldCheck size={20} className="text-green-600 dark:text-green-400 shrink-0" />
-          <div>
-            <p className="text-sm font-semibold text-green-800 dark:text-green-300">
-              {locale === 'ar' ? 'حماية Wibya' : 'Protection Wibya'}
-            </p>
-            <p className="text-xs text-green-600 dark:text-green-500">
-              {locale === 'ar' ? 'فحص خلال 24 ساعة · الدفع عند الاستلام' : 'Vérification sous 24h · Paiement à la livraison'}
+          {/* Description */}
+          <div className="bg-white dark:bg-neutral-900 rounded-2xl border border-neutral-100 dark:border-neutral-800 p-4">
+            <h2 className="font-bold text-neutral-900 dark:text-white text-sm mb-3">وصف المنتج</h2>
+            <p className="text-sm text-neutral-600 dark:text-neutral-400 leading-relaxed whitespace-pre-line">
+              {description}
             </p>
           </div>
-        </div>
 
-        {/* Description */}
-        {product.description && (
-          <div className="mb-5">
-            <h2 className="font-semibold text-neutral-900 dark:text-white mb-2 text-sm">
-              {locale === 'ar' ? 'الوصف' : 'Description'}
-            </h2>
-            <p className="text-neutral-600 dark:text-neutral-400 text-sm leading-relaxed whitespace-pre-wrap">
-              {product.description}
-            </p>
-          </div>
-        )}
-
-        {/* Details */}
-        <div className="bg-neutral-50 dark:bg-neutral-900 rounded-2xl p-4 mb-5 space-y-3">
-          {[
-            { label: locale === 'ar' ? 'الفئة' : 'Catégorie', value: product.category ?? '—' },
-            { label: locale === 'ar' ? 'الكمية' : 'Quantité', value: product.quantity },
-            { label: locale === 'ar' ? 'المشاهدات' : 'Vues', value: (product.views_count ?? 0) + 1 },
-            { label: locale === 'ar' ? 'الدفع' : 'Paiement', value: locale === 'ar' ? 'عند الاستلام' : 'À la livraison' },
-          ].map(({ label, value }) => (
-            <div key={label} className="flex items-center justify-between text-sm">
-              <span className="text-neutral-500 dark:text-neutral-400">{label}</span>
-              <span className="font-medium text-neutral-800 dark:text-neutral-200">{value}</span>
-            </div>
-          ))}
-        </div>
-
-        {/* Seller card — ✅ إصلاح: يروح لصفحة المتاجر */}
-        {seller && (
-          <Link href={`/stores`}>
-            <div className="flex items-center gap-3 bg-white dark:bg-neutral-900 border border-neutral-100 dark:border-neutral-800 rounded-2xl p-4 mb-5 hover:border-neutral-300 dark:hover:border-neutral-600 transition-colors">
-              <div className="w-12 h-12 rounded-xl bg-neutral-100 dark:bg-neutral-800 overflow-hidden shrink-0">
-                {seller.store_image ? (
-                  <Image src={seller.store_image} alt="" width={48} height={48} className="object-cover w-full h-full" />
-                ) : (
-                  <div className="w-full h-full flex items-center justify-center font-bold text-neutral-500 text-lg">
-                    {seller.store_name?.charAt(0) || 'W'}
-                  </div>
-                )}
-              </div>
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-1.5">
-                  <span className="font-semibold text-neutral-900 dark:text-white text-sm truncate">
-                    {seller.store_name ?? 'متجر'}
+          {/* Tech Stack */}
+          {product.tech_stack?.length > 0 && (
+            <div className="bg-white dark:bg-neutral-900 rounded-2xl border border-neutral-100 dark:border-neutral-800 p-4">
+              <h2 className="font-bold text-neutral-900 dark:text-white text-sm mb-3 flex items-center gap-2">
+                <Code2 size={14} aria-hidden="true" />
+                التقنيات المستخدمة
+              </h2>
+              <div className="flex flex-wrap gap-2">
+                {product.tech_stack.map((tech: string) => (
+                  <span key={tech} className="text-xs bg-neutral-100 dark:bg-neutral-800 text-neutral-600 dark:text-neutral-400 px-3 py-1.5 rounded-full">
+                    {tech}
                   </span>
-                  {seller.verified && <ShieldCheck size={14} className="text-blue-500 shrink-0" />}
-                  {seller.is_premium && <span className="text-[10px] bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 px-1.5 py-0.5 rounded-full">⭐</span>}
-                </div>
-                <div className="flex items-center gap-3 mt-0.5">
-                  {seller.city && (
-                    <span className="flex items-center gap-1 text-xs text-neutral-400 dark:text-neutral-500">
-                      <MapPin size={10} />{seller.city}
-                    </span>
-                  )}
-                  <span className="text-xs text-neutral-400 dark:text-neutral-500">
-                    {seller.total_sales?.toLocaleString() ?? 0} {locale === 'ar' ? 'مبيعة' : 'ventes'}
-                  </span>
-                </div>
+                ))}
               </div>
-              <Store size={16} className="text-neutral-400 shrink-0" />
             </div>
-          </Link>
-        )}
+          )}
 
-        {/* Similar products */}
-        {similar && similar.length > 0 && (
-          <div>
-            <h2 className="font-semibold text-neutral-900 dark:text-white mb-3 text-sm">
-              {locale === 'ar' ? 'منتجات مشابهة' : 'Produits similaires'}
-            </h2>
-            <div className="grid grid-cols-2 gap-3">
-              {similar.map(p => (
-                <Link key={p.id} href={`/product/${p.id}`}>
-                  <div className="bg-neutral-50 dark:bg-neutral-900 rounded-2xl overflow-hidden border border-neutral-100 dark:border-neutral-800">
-                    <div className="aspect-square relative bg-neutral-100 dark:bg-neutral-800">
-                      {(p.images as string[])?.[0] && (
-                        <Image src={(p.images as string[])[0]} alt={p.name} fill className="object-cover" sizes="(max-width: 768px) 50vw, 25vw" />
-                      )}
-                    </div>
-                    <div className="p-2.5">
-                      <p className="text-xs font-medium text-neutral-800 dark:text-neutral-200 line-clamp-1">{p.name}</p>
-                      <p className="text-sm font-bold text-neutral-900 dark:text-white mt-0.5">
-                        {p.price.toLocaleString()} {locale === 'ar' ? 'د.م.' : 'DH'}
-                      </p>
-                    </div>
-                  </div>
-                </Link>
+          {/* Details */}
+          <div className="bg-white dark:bg-neutral-900 rounded-2xl border border-neutral-100 dark:border-neutral-800 p-4">
+            <h2 className="font-bold text-neutral-900 dark:text-white text-sm mb-3">تفاصيل المنتج</h2>
+            <div className="space-y-2.5">
+              {[
+                { label: 'الإصدار', value: `v${product.version}`, icon: Tag },
+                { label: 'الدعم', value: product.support_duration ? `${product.support_duration} يوم` : 'بدون دعم', icon: Clock },
+                { label: 'Tags', value: product.tags?.join(', ') || '—', icon: Tag },
+              ].map(({ label, value, icon: Icon }) => (
+                <div key={label} className="flex justify-between items-start text-sm">
+                  <span className="text-neutral-500 dark:text-neutral-400 flex items-center gap-1.5">
+                    <Icon size={13} aria-hidden="true" />
+                    {label}
+                  </span>
+                  <span className="text-neutral-900 dark:text-white font-medium text-end max-w-[60%]">{value}</span>
+                </div>
               ))}
             </div>
           </div>
-        )}
+
+          {/* Requirements */}
+          {product.requirements && (
+            <div className="bg-white dark:bg-neutral-900 rounded-2xl border border-neutral-100 dark:border-neutral-800 p-4">
+              <h2 className="font-bold text-neutral-900 dark:text-white text-sm mb-2 flex items-center gap-2">
+                <AlertCircle size={14} aria-hidden="true" />
+                المتطلبات
+              </h2>
+              <p className="text-sm text-neutral-600 dark:text-neutral-400 whitespace-pre-line">
+                {product.requirements}
+              </p>
+            </div>
+          )}
+
+          {/* Installation Guide */}
+          {product.installation_guide && (
+            <div className="bg-white dark:bg-neutral-900 rounded-2xl border border-neutral-100 dark:border-neutral-800 p-4">
+              <h2 className="font-bold text-neutral-900 dark:text-white text-sm mb-2 flex items-center gap-2">
+                <Package size={14} aria-hidden="true" />
+                دليل التثبيت
+              </h2>
+              <p className="text-sm text-neutral-600 dark:text-neutral-400 whitespace-pre-line font-mono text-xs bg-neutral-50 dark:bg-neutral-800 p-3 rounded-xl">
+                {product.installation_guide}
+              </p>
+            </div>
+          )}
+
+          {/* Demo */}
+          {product.demo_url && (
+            <a href={product.demo_url} target="_blank" rel="noreferrer"
+              className="flex items-center justify-center gap-2 w-full py-3 border-2 border-neutral-200 dark:border-neutral-700 text-neutral-700 dark:text-neutral-300 font-semibold rounded-2xl text-sm hover:border-neutral-400 transition-colors">
+              <Eye size={16} aria-hidden="true" />
+              مشاهدة Demo المباشر
+            </a>
+          )}
+
+          {/* Developer */}
+          <div className="bg-white dark:bg-neutral-900 rounded-2xl border border-neutral-100 dark:border-neutral-800 p-4">
+            <h2 className="font-bold text-neutral-900 dark:text-white text-sm mb-3">المطور</h2>
+            <Link href={`/developer/${developer?.id}`} className="flex items-center gap-3 group">
+              <div className="w-12 h-12 rounded-2xl bg-neutral-100 dark:bg-neutral-800 overflow-hidden shrink-0 flex items-center justify-center text-lg font-bold text-neutral-500">
+                {developer?.store_image
+                  ? <Image src={developer.store_image} alt={developer.store_name || ''} width={48} height={48} className="object-cover w-full h-full" />
+                  : (developer?.store_name || developer?.full_name || 'D').charAt(0)
+                }
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-1.5">
+                  <p className="font-semibold text-sm text-neutral-900 dark:text-white group-hover:underline">
+                    {developer?.store_name || developer?.full_name || 'مطور'}
+                  </p>
+                  {developer?.is_verified && (
+                    <BadgeCheck size={14} className="text-blue-500" aria-label="مطور موثق" />
+                  )}
+                </div>
+                {developer?.bio && (
+                  <p className="text-xs text-neutral-500 dark:text-neutral-400 line-clamp-1">{developer.bio}</p>
+                )}
+                <div className="flex items-center gap-3 mt-1">
+                  <span className="text-xs text-neutral-400">
+                    <Users size={11} className="inline me-1" aria-hidden="true" />
+                    {developer?.followers_count || 0} متابع
+                  </span>
+                  <span className="text-xs text-neutral-400">
+                    <Download size={11} className="inline me-1" aria-hidden="true" />
+                    {developer?.total_sales || 0} مبيعة
+                  </span>
+                </div>
+              </div>
+            </Link>
+          </div>
+
+          {/* Reviews */}
+          {reviews.length > 0 && (
+            <div className="bg-white dark:bg-neutral-900 rounded-2xl border border-neutral-100 dark:border-neutral-800 overflow-hidden">
+              <div className="px-4 py-3 border-b border-neutral-50 dark:border-neutral-800 flex items-center justify-between">
+                <h2 className="font-bold text-neutral-900 dark:text-white text-sm">
+                  التقييمات ({reviews.length})
+                </h2>
+                <div className="flex items-center gap-1">
+                  <Star size={14} className="text-amber-400 fill-amber-400" aria-hidden="true" />
+                  <span className="font-bold text-sm text-neutral-900 dark:text-white">
+                    {product.average_rating.toFixed(1)}
+                  </span>
+                </div>
+              </div>
+              {reviews.slice(0, 5).map((review: any) => (
+                <div key={review.id} className="px-4 py-3 border-b border-neutral-50 dark:border-neutral-800 last:border-0">
+                  <div className="flex items-center justify-between mb-1.5">
+                    <p className="text-sm font-medium text-neutral-900 dark:text-white">
+                      {(review.profiles as any)?.store_name || (review.profiles as any)?.full_name || 'مستخدم'}
+                    </p>
+                    <div className="flex items-center gap-0.5">
+                      {[1,2,3,4,5].map(i => (
+                        <Star key={i} size={12} className={i <= review.rating ? 'text-amber-400 fill-amber-400' : 'text-neutral-200 dark:text-neutral-700'} aria-hidden="true" />
+                      ))}
+                    </div>
+                  </div>
+                  {review.comment && (
+                    <p className="text-xs text-neutral-500 dark:text-neutral-400">{review.comment}</p>
+                  )}
+                  <p className="text-[10px] text-neutral-300 dark:text-neutral-600 mt-1">
+                    {new Date(review.created_at).toLocaleDateString('ar-MA')}
+                  </p>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Similar Products */}
+          {similarProducts && similarProducts.length > 0 && (
+            <div>
+              <h2 className="font-bold text-neutral-900 dark:text-white text-sm mb-3">منتجات مشابهة</h2>
+              <div className="grid grid-cols-2 gap-3">
+                {similarProducts.map(p => (
+                  <Link key={p.id} href={`/product/${p.id}`}>
+                    <div className="bg-white dark:bg-neutral-900 rounded-2xl border border-neutral-100 dark:border-neutral-800 overflow-hidden hover:border-neutral-300 dark:hover:border-neutral-600 transition-colors">
+                      <div className="aspect-video relative bg-neutral-100 dark:bg-neutral-800">
+                        {p.preview_images?.[0] ? (
+                          <Image src={p.preview_images[0]} alt={p.title} fill className="object-cover" sizes="50vw" />
+                        ) : (
+                          <div className="w-full h-full flex items-center justify-center">
+                            <Package size={24} className="text-neutral-300" aria-hidden="true" />
+                          </div>
+                        )}
+                        {p.quality_badge && (
+                          <div className="absolute top-1.5 start-1.5">
+                            <Shield size={14} className="text-green-500" aria-label="منتج مفحوص" />
+                          </div>
+                        )}
+                      </div>
+                      <div className="p-3">
+                        <p className="text-xs font-medium text-neutral-900 dark:text-white line-clamp-2 mb-1">{p.title}</p>
+                        <div className="flex items-center justify-between">
+                          <span className="text-sm font-bold text-neutral-900 dark:text-white">${p.price}</span>
+                          {p.average_rating > 0 && (
+                            <div className="flex items-center gap-0.5">
+                              <Star size={11} className="text-amber-400 fill-amber-400" aria-hidden="true" />
+                              <span className="text-[10px] text-neutral-500">{p.average_rating.toFixed(1)}</span>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  </Link>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
       </div>
 
-      <ProductActions product={product as any} locale={locale} />
+      {/* Fixed Bottom Actions */}
+      <ProductActions
+        product={{
+          id: product.id,
+          title,
+          price: product.price,
+          originalPrice: product.original_price,
+          developerId: product.developer_id,
+          demoUrl: product.demo_url,
+        }}
+        hasPurchased={hasPurchased}
+        isWishlisted={isWishlisted}
+        userId={user?.id}
+      />
+
+      <BottomNav />
     </div>
   )
 }
