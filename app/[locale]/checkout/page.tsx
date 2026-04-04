@@ -3,30 +3,13 @@ import { Suspense, useState, useEffect } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter } from '@/lib/i18n/navigation'
+import { PayPalScriptProvider, PayPalButtons } from '@paypal/react-paypal-js'
 import Image from 'next/image'
-import { ArrowRight, ShieldCheck, Package, Check, Truck, CreditCard, AlertCircle } from 'lucide-react'
+import {
+  ArrowRight, Shield, Check, Lock,
+  Package, Tag, Clock, AlertCircle
+} from 'lucide-react'
 import toast from 'react-hot-toast'
-
-const CITIES = ['الدار البيضاء','الرباط','فاس','مراكش','أكادير','طنجة','مكناس','وجدة','تطوان','سلا','أخرى']
-
-function Field({ label, required, error, children }: {
-  label: string; required?: boolean; error?: string; children: React.ReactNode
-}) {
-  return (
-    <div className="flex flex-col gap-1">
-      <label className="text-xs font-medium text-neutral-600 dark:text-neutral-400">
-        {label}{required && <span className="text-red-500 ms-1">*</span>}
-      </label>
-      {children}
-      {error && (
-        <div className="flex items-center gap-1">
-          <AlertCircle size={11} className="text-red-500 shrink-0" />
-          <p className="text-xs text-red-500">{error}</p>
-        </div>
-      )}
-    </div>
-  )
-}
 
 function CheckoutForm() {
   const searchParams = useSearchParams()
@@ -34,110 +17,152 @@ function CheckoutForm() {
   const productId = searchParams.get('product')
 
   const [product, setProduct] = useState<any>(null)
-  const [seller, setSeller] = useState<any>(null)
+  const [developer, setDeveloper] = useState<any>(null)
   const [userId, setUserId] = useState<string>('')
   const [loading, setLoading] = useState(true)
-  const [ordering, setOrdering] = useState(false)
-  const [ordered, setOrdered] = useState(false)
-  const [outOfStock, setOutOfStock] = useState(false)
-
-  const [address, setAddress] = useState('')
-  const [city, setCity] = useState('')
-  const [phone, setPhone] = useState('')
-  const [notes, setNotes] = useState('')
-  const [errors, setErrors] = useState<Record<string, string>>({})
+  const [couponCode, setCouponCode] = useState('')
+  const [coupon, setCoupon] = useState<any>(null)
+  const [checkingCoupon, setCheckingCoupon] = useState(false)
+  const [orderComplete, setOrderComplete] = useState(false)
+  const [purchaseId, setPurchaseId] = useState<string>('')
 
   useEffect(() => {
     if (!productId) { router.push('/'); return }
     const supabase = createClient()
-    supabase.auth.getUser().then(({ data: { user } }) => {
+    supabase.auth.getUser().then(async ({ data: { user } }) => {
       if (!user) { router.push('/auth/login'); return }
       setUserId(user.id)
-      Promise.all([
-        supabase.from('products')
-          .select('id, name, price, images, seller_id, quantity, status, profiles(id, store_name, store_image)')
-          .eq('id', productId)
-          .single(),
-        supabase.from('profiles').select('phone, city').eq('id', user.id).single(),
-      ]).then(([{ data: p }, { data: profile }]) => {
-        if (!p) { router.push('/'); return }
-        setProduct(p)
-        setSeller((p as any).profiles)
-        // فحص الـ stock
-        if (p.status !== 'active' || (p.quantity !== null && p.quantity <= 0)) {
-          setOutOfStock(true)
-        }
-        if (profile?.phone) setPhone(profile.phone)
-        if (profile?.city) setCity(profile.city)
-        setLoading(false)
-      })
+
+      const { data: p } = await supabase
+        .from('digital_products')
+        .select('*, profiles(id, full_name, store_name, store_image, is_verified, paypal_email)')
+        .eq('id', productId)
+        .eq('status', 'active')
+        .single()
+
+      if (!p) { toast.error('المنتج غير موجود'); router.push('/'); return }
+
+      // هل اشترى من قبل؟
+      const { data: existing } = await supabase
+        .from('purchases')
+        .select('id')
+        .eq('buyer_id', user.id)
+        .eq('product_id', productId)
+        .in('status', ['completed', 'escrow'])
+        .single()
+
+      if (existing) {
+        toast('اشتريت هذا المنتج مسبقاً', { icon: 'ℹ️' })
+        router.push('/purchases')
+        return
+      }
+
+      setProduct(p)
+      setDeveloper(p.profiles)
+      setLoading(false)
     })
   }, [productId])
 
-  function validate() {
-    const e: Record<string, string> = {}
-    if (!address.trim()) e.address = 'العنوان مطلوب'
-    if (!city) e.city = 'المدينة مطلوبة'
-    if (!phone.trim()) e.phone = 'الهاتف مطلوب'
-    setErrors(e)
-    return !Object.keys(e).length
-  }
-
-  async function submit() {
-    if (!validate() || !userId || !product) return
-    if (outOfStock) { toast.error('هذا المنتج غير متوفر حالياً'); return }
-    setOrdering(true)
-
+  async function applyCoupon() {
+    if (!couponCode.trim() || !productId) return
+    setCheckingCoupon(true)
     const supabase = createClient()
-
-    // فحص الـ stock قبل الطلب
-    const { data: stockOk } = await supabase.rpc('check_and_reserve_stock', {
-      p_product_id: product.id,
-      p_quantity: 1,
-    })
-
-    if (!stockOk) {
-      toast.error('عذراً، المنتج نفد من المخزون')
-      setOutOfStock(true)
-      setOrdering(false)
-      return
-    }
-
-    // إدخال الطلب
-    const { data: order, error } = await supabase
-      .from('orders')
-      .insert({
-        buyer_id: userId,
-        seller_id: product.seller_id,
-        total: product.price,
-        subtotal: product.price,
-        status: 'pending',
-        payment_method: 'cod',
-        shipping_address: `${address.trim()}، ${city}`,
-        items: [{ name: product.name, quantity: 1, price: product.price, total: product.price }],
-      })
-      .select('id')
+    const { data } = await supabase
+      .from('coupons')
+      .select('*')
+      .eq('code', couponCode.trim().toUpperCase())
+      .eq('product_id', productId)
+      .eq('is_active', true)
       .single()
 
-    if (error) {
-      // إعادة الـ stock في حالة الخطأ
-      await supabase.from('products').update({ quantity: (product.quantity ?? 1) + 1 }).eq('id', product.id)
-      toast.error('حدث خطأ: ' + error.message)
-      setOrdering(false)
-      return
+    if (!data) {
+      toast.error('كود الخصم غير صحيح أو منتهي')
+      setCoupon(null)
+    } else if (data.used_count >= data.max_uses) {
+      toast.error('كود الخصم استُنفد')
+      setCoupon(null)
+    } else if (data.expires_at && new Date(data.expires_at) < new Date()) {
+      toast.error('كود الخصم منتهي الصلاحية')
+      setCoupon(null)
+    } else {
+      setCoupon(data)
+      toast.success(`تم تطبيق خصم ${data.discount_percent}% ✅`)
     }
+    setCheckingCoupon(false)
+  }
 
-    // إشعار للبائع
-    await supabase.from('notifications').insert({
-      user_id: product.seller_id,
-      title: '🛍️ طلب جديد!',
-      body: `"${product.name}" — ${product.price.toLocaleString()} د.م. من ${city}`,
-      type: 'order',
-      is_read: false,
-    })
+  const finalPrice = coupon
+    ? product?.price * (1 - coupon.discount_percent / 100)
+    : product?.price
 
-    setOrdered(true)
-    setOrdering(false)
+  const platformFee = finalPrice * 0.09
+  const developerAmount = finalPrice - platformFee
+
+  async function createOrder() {
+    return `${finalPrice.toFixed(2)}`
+  }
+
+  async function onApprove(data: any) {
+    const supabase = createClient()
+    try {
+      // إنشاء الشراء في قاعدة البيانات
+      const { data: purchase, error } = await supabase
+        .from('purchases')
+        .insert({
+          buyer_id: userId,
+          product_id: productId,
+          developer_id: product.developer_id,
+          amount: finalPrice,
+          platform_fee: platformFee,
+          developer_amount: developerAmount,
+          currency: 'USD',
+          payment_method: 'paypal',
+          payment_id: data.orderID,
+          status: 'escrow',
+          escrow_until: new Date(Date.now() + 48 * 60 * 60 * 1000).toISOString(),
+          coupon_id: coupon?.id || null,
+          coupon_discount: coupon ? product.price * (coupon.discount_percent / 100) : 0,
+        })
+        .select('id')
+        .single()
+
+      if (error || !purchase) throw error
+
+      setPurchaseId(purchase.id)
+
+      // تحديث استخدام الكوبون
+      if (coupon) {
+        await supabase.from('coupons')
+          .update({ used_count: coupon.used_count + 1 })
+          .eq('id', coupon.id)
+      }
+
+      // تحديث إحصائيات المنتج
+      await supabase.from('digital_products')
+        .update({ sales_count: (product.sales_count || 0) + 1 })
+        .eq('id', productId)
+
+      // إشعار للمطور
+      await supabase.from('notifications').insert({
+        user_id: product.developer_id,
+        title: '🎉 بيعة جديدة!',
+        body: `تم شراء "${product.title}" مقابل $${finalPrice.toFixed(2)}`,
+        type: 'product',
+        is_read: false,
+      })
+
+      // إنشاء رابط التحميل
+      await supabase.rpc('generate_download_token', {
+        p_purchase_id: purchase.id,
+        p_buyer_id: userId,
+      })
+
+      setOrderComplete(true)
+
+    } catch (err) {
+      toast.error('خطأ في معالجة الدفع — تواصل مع الدعم')
+      console.error(err)
+    }
   }
 
   if (loading) return (
@@ -146,149 +171,210 @@ function CheckoutForm() {
     </div>
   )
 
-  if (ordered) return (
+  if (orderComplete) return (
     <div className="min-h-screen flex flex-col items-center justify-center px-6 text-center bg-neutral-50 dark:bg-neutral-950">
       <div className="w-20 h-20 bg-green-100 dark:bg-green-900/30 rounded-full flex items-center justify-center mb-5">
-        <Check size={36} className="text-green-600" />
+        <Check size={36} className="text-green-600" aria-hidden="true" />
       </div>
-      <h1 className="text-2xl font-bold text-neutral-900 dark:text-white mb-2">تم الطلب ✅</h1>
-      <p className="text-neutral-400 text-sm mb-1">سيتواصل معك البائع قريباً</p>
-      <p className="text-neutral-300 dark:text-neutral-600 text-xs mb-8">الدفع عند الاستلام · حماية Wibya</p>
+      <h1 className="text-2xl font-bold text-neutral-900 dark:text-white mb-2">
+        تم الشراء بنجاح! 🎉
+      </h1>
+      <p className="text-neutral-500 dark:text-neutral-400 text-sm mb-1">
+        يمكنك تحميل المنتج الآن من صفحة مشترياتي
+      </p>
+      <p className="text-neutral-400 text-xs mb-8">
+        سيتم تحويل المبلغ للمطور بعد 48 ساعة
+      </p>
       <div className="flex gap-3 w-full max-w-xs">
-        <button onClick={() => router.push('/')} className="flex-1 py-3 bg-neutral-900 dark:bg-white text-white dark:text-neutral-900 font-semibold rounded-2xl text-sm">الرئيسية</button>
-        <button onClick={() => router.push('/orders')} className="flex-1 py-3 border border-neutral-200 dark:border-neutral-700 text-neutral-700 dark:text-neutral-300 rounded-2xl text-sm">طلباتي</button>
+        <button
+          onClick={() => router.push('/purchases')}
+          className="flex-1 py-3.5 bg-neutral-900 dark:bg-white text-white dark:text-neutral-900 font-bold rounded-2xl text-sm"
+        >
+          تحميل المنتج
+        </button>
+        <button
+          onClick={() => router.push('/')}
+          className="flex-1 py-3.5 border border-neutral-200 dark:border-neutral-700 text-neutral-700 dark:text-neutral-300 rounded-2xl text-sm"
+        >
+          الرئيسية
+        </button>
       </div>
     </div>
   )
 
   return (
     <div className="min-h-screen bg-neutral-50 dark:bg-neutral-950">
+      {/* Header */}
       <header className="sticky top-0 z-40 bg-white/90 dark:bg-neutral-950/90 backdrop-blur-xl border-b border-neutral-100 dark:border-neutral-800 flex items-center gap-3 px-4 h-14">
-        <button onClick={() => router.back()} className="p-2 rounded-xl hover:bg-neutral-100 dark:hover:bg-neutral-800">
-          <ArrowRight size={18} className="text-neutral-700 dark:text-neutral-300 rotate-180" />
+        <button
+          onClick={() => router.back()}
+          className="p-2 rounded-xl hover:bg-neutral-100 dark:hover:bg-neutral-800"
+          aria-label="رجوع"
+        >
+          <ArrowRight size={18} className="text-neutral-700 dark:text-neutral-300 rotate-180" aria-hidden="true" />
         </button>
         <div className="flex items-center gap-2">
-          <Image src="/logo.png" alt="Wibya" width={26} height={26} className="object-contain" />
-          <h1 className="font-bold text-neutral-900 dark:text-white">إتمام الطلب</h1>
+          <Lock size={16} className="text-green-500" aria-hidden="true" />
+          <h1 className="font-bold text-neutral-900 dark:text-white">إتمام الشراء</h1>
         </div>
       </header>
 
-      <div className="px-4 py-4 pb-36 max-w-lg mx-auto space-y-4">
+      <div className="px-4 py-4 pb-10 max-w-lg mx-auto space-y-4">
 
-        {/* Out of stock warning */}
-        {outOfStock && (
-          <div className="flex items-center gap-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-2xl p-4">
-            <AlertCircle size={18} className="text-red-500 shrink-0" />
-            <p className="text-sm text-red-700 dark:text-red-300">هذا المنتج غير متوفر حالياً</p>
-          </div>
-        )}
-
-        {/* Product */}
+        {/* Product Card */}
         <div className="bg-white dark:bg-neutral-900 rounded-2xl border border-neutral-100 dark:border-neutral-800 p-4 flex items-center gap-3">
-          <div className="w-14 h-14 rounded-xl bg-neutral-100 dark:bg-neutral-800 overflow-hidden shrink-0">
-            {product?.images?.[0]
-              ? <Image src={product.images[0]} alt={product.name} width={56} height={56} className="object-cover w-full h-full" />
-              : <Package size={18} className="text-neutral-300 m-auto mt-4" />
-            }
-          </div>
-          <div className="flex-1 min-w-0">
-            <p className="font-semibold text-sm text-neutral-900 dark:text-white truncate">{product?.name}</p>
-            <p className="text-xs text-neutral-400">{(seller as any)?.store_name || 'متجر'}</p>
-            {product?.quantity !== null && product?.quantity <= 5 && product?.quantity > 0 && (
-              <p className="text-xs text-amber-500 mt-0.5">⚠️ آخر {product.quantity} قطع</p>
+          <div className="w-16 h-16 rounded-xl bg-neutral-100 dark:bg-neutral-800 overflow-hidden shrink-0 relative">
+            {product?.preview_images?.[0] ? (
+              <Image src={product.preview_images[0]} alt={product.title} fill className="object-cover" sizes="64px" />
+            ) : (
+              <div className="w-full h-full flex items-center justify-center">
+                <Package size={24} className="text-neutral-300" aria-hidden="true" />
+              </div>
             )}
           </div>
-          <p className="font-bold text-neutral-900 dark:text-white shrink-0">{product?.price?.toLocaleString()} <span className="text-xs font-normal text-neutral-400">د.م.</span></p>
-        </div>
-
-        {/* Shipping */}
-        <div className="bg-white dark:bg-neutral-900 rounded-2xl border border-neutral-100 dark:border-neutral-800 p-4 space-y-4">
-          <div className="flex items-center gap-2">
-            <Truck size={15} className="text-neutral-500" />
-            <h2 className="font-semibold text-sm text-neutral-900 dark:text-white">معلومات التسليم</h2>
+          <div className="flex-1 min-w-0">
+            <p className="font-semibold text-sm text-neutral-900 dark:text-white truncate">{product?.title}</p>
+            <p className="text-xs text-neutral-400 mt-0.5">
+              {developer?.store_name || developer?.full_name || 'مطور'}
+            </p>
+            <div className="flex items-center gap-2 mt-1">
+              <span className="text-[10px] bg-neutral-100 dark:bg-neutral-800 text-neutral-500 px-2 py-0.5 rounded-full">
+                {product?.category}
+              </span>
+              {product?.quality_badge && (
+                <span className="text-[10px] bg-green-50 dark:bg-green-900/20 text-green-600 px-2 py-0.5 rounded-full flex items-center gap-1">
+                  <Shield size={9} aria-hidden="true" /> مفحوص
+                </span>
+              )}
+            </div>
           </div>
-          <Field label="العنوان الكامل" required error={errors.address}>
-            <input type="text" value={address}
-              onChange={e => { setAddress(e.target.value); setErrors(p => ({ ...p, address: '' })) }}
-              className={`w-full px-4 py-3 rounded-2xl text-sm bg-neutral-50 dark:bg-neutral-800 border text-neutral-900 dark:text-white placeholder-neutral-400 outline-none transition-colors ${errors.address ? 'border-red-400' : 'border-neutral-200 dark:border-neutral-700 focus:border-neutral-400'}`}
-              placeholder="الحي، الشارع، رقم البناية..." />
-          </Field>
-          <Field label="المدينة" required error={errors.city}>
-            <select value={city} onChange={e => { setCity(e.target.value); setErrors(p => ({ ...p, city: '' })) }}
-              className={`w-full px-4 py-3 rounded-2xl text-sm bg-neutral-50 dark:bg-neutral-800 border text-neutral-900 dark:text-white outline-none transition-colors ${errors.city ? 'border-red-400' : 'border-neutral-200 dark:border-neutral-700 focus:border-neutral-400'}`}>
-              <option value="">اختر المدينة...</option>
-              {CITIES.map(c => <option key={c} value={c}>{c}</option>)}
-            </select>
-          </Field>
-          <Field label="رقم الهاتف" required error={errors.phone}>
-            <input type="tel" value={phone}
-              onChange={e => { setPhone(e.target.value); setErrors(p => ({ ...p, phone: '' })) }}
-              className={`w-full px-4 py-3 rounded-2xl text-sm bg-neutral-50 dark:bg-neutral-800 border text-neutral-900 dark:text-white placeholder-neutral-400 outline-none transition-colors ${errors.phone ? 'border-red-400' : 'border-neutral-200 dark:border-neutral-700 focus:border-neutral-400'}`}
-              placeholder="+212 6XX-XXXXXX" dir="ltr" />
-          </Field>
-          <Field label="ملاحظات (اختياري)">
-            <textarea value={notes} onChange={e => setNotes(e.target.value)}
-              className="w-full px-4 py-3 rounded-2xl text-sm bg-neutral-50 dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 text-neutral-900 dark:text-white placeholder-neutral-400 outline-none resize-none focus:border-neutral-400 transition-colors"
-              rows={2} placeholder="أي تفاصيل للبائع..." />
-          </Field>
         </div>
 
-        {/* Payment */}
+        {/* Coupon */}
         <div className="bg-white dark:bg-neutral-900 rounded-2xl border border-neutral-100 dark:border-neutral-800 p-4">
-          <div className="flex items-center gap-2 mb-3">
-            <CreditCard size={15} className="text-neutral-500" />
-            <h2 className="font-semibold text-sm text-neutral-900 dark:text-white">طريقة الدفع</h2>
+          <p className="text-sm font-semibold text-neutral-900 dark:text-white mb-3 flex items-center gap-2">
+            <Tag size={14} aria-hidden="true" />
+            كود الخصم
+          </p>
+          <div className="flex gap-2">
+            <input
+              value={couponCode}
+              onChange={e => setCouponCode(e.target.value.toUpperCase())}
+              onKeyDown={e => e.key === 'Enter' && applyCoupon()}
+              placeholder="أدخل كود الخصم"
+              className="flex-1 px-4 py-2.5 bg-neutral-50 dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 rounded-xl text-sm text-neutral-900 dark:text-white outline-none focus:border-neutral-400 transition-colors"
+              dir="ltr"
+              aria-label="كود الخصم"
+            />
+            <button
+              onClick={applyCoupon}
+              disabled={checkingCoupon || !couponCode.trim()}
+              className="px-4 py-2.5 bg-neutral-900 dark:bg-white text-white dark:text-neutral-900 font-medium rounded-xl text-sm disabled:opacity-40"
+            >
+              {checkingCoupon ? '...' : 'تطبيق'}
+            </button>
           </div>
-          <div className="flex items-center gap-3 p-3 rounded-xl border-2 border-neutral-900 dark:border-white bg-neutral-50 dark:bg-neutral-800">
-            <div className="w-8 h-8 bg-neutral-900 dark:bg-white rounded-lg flex items-center justify-center shrink-0">
-              <Package size={14} className="text-white dark:text-neutral-900" />
+          {coupon && (
+            <div className="flex items-center gap-2 mt-2 bg-green-50 dark:bg-green-900/20 rounded-xl px-3 py-2">
+              <Check size={14} className="text-green-500" aria-hidden="true" />
+              <p className="text-xs text-green-700 dark:text-green-300">
+                خصم {coupon.discount_percent}% مطبق!
+              </p>
             </div>
-            <div>
-              <p className="text-sm font-semibold text-neutral-900 dark:text-white">الدفع عند الاستلام</p>
-              <p className="text-xs text-neutral-400">Cash on Delivery</p>
-            </div>
-            <div className="ms-auto w-5 h-5 rounded-full bg-neutral-900 dark:bg-white flex items-center justify-center">
-              <Check size={11} className="text-white dark:text-neutral-900" />
-            </div>
-          </div>
+          )}
         </div>
 
-        {/* Summary */}
+        {/* Price Summary */}
         <div className="bg-white dark:bg-neutral-900 rounded-2xl border border-neutral-100 dark:border-neutral-800 p-4">
-          <h2 className="font-semibold text-sm text-neutral-900 dark:text-white mb-3">الملخص</h2>
+          <p className="text-sm font-semibold text-neutral-900 dark:text-white mb-3">ملخص الطلب</p>
           <div className="space-y-2 text-sm">
             <div className="flex justify-between">
-              <span className="text-neutral-400">السعر</span>
-              <span className="text-neutral-900 dark:text-white">{product?.price?.toLocaleString()} د.م.</span>
+              <span className="text-neutral-500 dark:text-neutral-400">سعر المنتج</span>
+              <span className="text-neutral-900 dark:text-white">${product?.price?.toFixed(2)}</span>
             </div>
-            <div className="flex justify-between">
-              <span className="text-neutral-400">التوصيل</span>
-              <span className="text-green-600">مجاناً</span>
-            </div>
-            <div className="flex justify-between font-bold pt-2 border-t border-neutral-100 dark:border-neutral-800">
+            {coupon && (
+              <div className="flex justify-between text-green-600">
+                <span>خصم {coupon.discount_percent}%</span>
+                <span>-${(product?.price * coupon.discount_percent / 100).toFixed(2)}</span>
+              </div>
+            )}
+            <div className="flex justify-between pt-2 border-t border-neutral-100 dark:border-neutral-800 font-bold">
               <span className="text-neutral-900 dark:text-white">المجموع</span>
-              <span className="text-neutral-900 dark:text-white">{product?.price?.toLocaleString()} د.م.</span>
+              <span className="text-neutral-900 dark:text-white text-lg">${finalPrice?.toFixed(2)}</span>
             </div>
           </div>
         </div>
 
-        <div className="flex items-center gap-3 bg-green-50 dark:bg-green-900/20 border border-green-100 dark:border-green-800 rounded-2xl p-3">
-          <ShieldCheck size={16} className="text-green-600 dark:text-green-400 shrink-0" />
-          <p className="text-xs text-green-700 dark:text-green-300">حماية Wibya — ضمان الاسترجاع خلال 7 أيام</p>
+        {/* Guarantees */}
+        <div className="grid grid-cols-3 gap-2">
+          {[
+            { icon: Shield, text: 'دفع آمن' },
+            { icon: Clock, text: 'وصول دائم' },
+            { icon: Check, text: 'بدون اشتراك' },
+          ].map(({ icon: Icon, text }) => (
+            <div key={text} className="bg-white dark:bg-neutral-900 rounded-xl border border-neutral-100 dark:border-neutral-800 p-3 text-center">
+              <Icon size={16} className="text-green-500 mx-auto mb-1" aria-hidden="true" />
+              <p className="text-[10px] text-neutral-500 dark:text-neutral-400">{text}</p>
+            </div>
+          ))}
         </div>
-      </div>
 
-      <div className="fixed bottom-0 start-0 end-0 bg-white/95 dark:bg-neutral-950/95 backdrop-blur-xl border-t border-neutral-100 dark:border-neutral-800 p-4">
-        <button onClick={submit} disabled={ordering || outOfStock}
-          className="w-full py-4 bg-neutral-900 dark:bg-white text-white dark:text-neutral-900 font-bold rounded-2xl disabled:opacity-50 flex items-center justify-center gap-2">
-          {ordering
-            ? <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-            : outOfStock
-            ? 'المنتج غير متوفر'
-            : <><ShieldCheck size={17} /> تأكيد الطلب — {product?.price?.toLocaleString()} د.م.</>
-          }
-        </button>
-        <p className="text-center text-xs text-neutral-400 mt-1.5">الحقول المعلمة بـ * إلزامية</p>
+        {/* Escrow Notice */}
+        <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-2xl p-4 flex items-start gap-3">
+          <AlertCircle size={16} className="text-blue-500 shrink-0 mt-0.5" aria-hidden="true" />
+          <p className="text-xs text-blue-700 dark:text-blue-300 leading-relaxed">
+            <strong>نظام الحماية Escrow:</strong> مبلغك محمي لمدة 48 ساعة. إذا واجهت مشكلة يمكنك فتح نزاع خلال هذه المدة.
+          </p>
+        </div>
+
+        {/* PayPal Button */}
+        <div className="bg-white dark:bg-neutral-900 rounded-2xl border border-neutral-100 dark:border-neutral-800 p-4">
+          <p className="text-sm font-semibold text-neutral-900 dark:text-white mb-4 flex items-center gap-2">
+            <Lock size={14} className="text-green-500" aria-hidden="true" />
+            الدفع الآمن بـ PayPal
+          </p>
+
+          <PayPalScriptProvider options={{
+            clientId: process.env.NEXT_PUBLIC_PAYPAL_CLIENT_ID!,
+            currency: 'USD',
+          }}>
+            <PayPalButtons
+              style={{
+                layout: 'vertical',
+                color: 'black',
+                shape: 'rect',
+                label: 'pay',
+                height: 48,
+              }}
+              createOrder={async (data, actions) => {
+                return actions.order.create({
+                  intent: 'CAPTURE',
+                  purchase_units: [{
+                    amount: {
+                      currency_code: 'USD',
+                      value: finalPrice.toFixed(2),
+                    },
+                    description: product?.title,
+                  }],
+                })
+              }}
+              onApprove={async (data, actions) => {
+                await actions.order?.capture()
+                await onApprove(data)
+              }}
+              onError={() => {
+                toast.error('خطأ في PayPal — حاول مجدداً')
+              }}
+              onCancel={() => {
+                toast('تم إلغاء الدفع', { icon: 'ℹ️' })
+              }}
+            />
+          </PayPalScriptProvider>
+
+          <p className="text-[10px] text-neutral-400 text-center mt-3">
+            بالضغط على "Pay Now" توافق على شروط الاستخدام وسياسة عدم الاسترداد
+          </p>
+        </div>
       </div>
     </div>
   )
@@ -296,7 +382,11 @@ function CheckoutForm() {
 
 export default function CheckoutPage() {
   return (
-    <Suspense fallback={<div className="min-h-screen flex items-center justify-center bg-neutral-50 dark:bg-neutral-950"><div className="w-6 h-6 border-2 border-neutral-200 border-t-neutral-900 rounded-full animate-spin" /></div>}>
+    <Suspense fallback={
+      <div className="min-h-screen flex items-center justify-center bg-neutral-50 dark:bg-neutral-950">
+        <div className="w-6 h-6 border-2 border-neutral-200 border-t-neutral-900 rounded-full animate-spin" />
+      </div>
+    }>
       <CheckoutForm />
     </Suspense>
   )
