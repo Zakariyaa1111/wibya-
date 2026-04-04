@@ -1,7 +1,7 @@
 'use client'
 import { useEffect, useState } from 'react'
 import { Link, usePathname } from '@/lib/i18n/navigation'
-import { Home, Search, ShoppingBag, User, Code2 } from 'lucide-react'
+import { Home, Search, ShoppingBag, User, Code2, Shield } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 
 let cachedRole: string | null = null
@@ -29,20 +29,29 @@ export function BottomNav() {
   }, [])
 
   const baseItems = [
-    { href: '/', icon: Home, label: 'الرئيسية', labelFr: 'Accueil' },
-    { href: '/search', icon: Search, label: 'بحث', labelFr: 'Recherche' },
-    { href: '/purchases', icon: ShoppingBag, label: 'مشترياتي', labelFr: 'Achats' },
-    { href: '/profile', icon: User, label: 'حسابي', labelFr: 'Profil' },
+    { href: '/', icon: Home, label: 'الرئيسية' },
+    { href: '/search', icon: Search, label: 'بحث' },
+    { href: '/purchases', icon: ShoppingBag, label: 'مشترياتي' },
+    { href: '/profile', icon: User, label: 'حسابي' },
   ]
 
+  // ✅ الأدمن يرى لوحة الأدمن
+  const adminItem = {
+    href: '/admin',
+    icon: Shield,
+    label: 'الأدمن',
+  }
+
+  // ✅ المطور يرى لوحة المطور
   const developerItem = {
     href: '/developer/dashboard',
     icon: Code2,
     label: 'لوحتي',
-    labelFr: 'Dashboard'
   }
 
-  const items = role === 'developer' || role === 'admin'
+  const items = role === 'admin'
+    ? [baseItems[0], baseItems[1], adminItem, baseItems[2], baseItems[3]]
+    : role === 'developer'
     ? [baseItems[0], baseItems[1], developerItem, baseItems[2], baseItems[3]]
     : baseItems
 
@@ -55,9 +64,8 @@ export function BottomNav() {
       aria-label={isAr ? 'التنقل الرئيسي' : 'Navigation principale'}
       role="navigation"
     >
-      {items.map(({ href, icon: Icon, label, labelFr }) => {
+      {items.map(({ href, icon: Icon, label }) => {
         const active = pathname === href || (href !== '/' && pathname.startsWith(href))
-        const displayLabel = isAr ? label : labelFr
         return (
           <Link
             key={href}
@@ -67,11 +75,11 @@ export function BottomNav() {
                 ? 'text-neutral-900 dark:text-white'
                 : 'text-neutral-400 dark:text-neutral-500'
             }`}
-            aria-label={displayLabel}
+            aria-label={label}
             aria-current={active ? 'page' : undefined}
           >
             <Icon size={22} strokeWidth={active ? 2.5 : 1.8} aria-hidden="true" />
-            <span className="text-[10px] font-medium">{displayLabel}</span>
+            <span className="text-[10px] font-medium">{label}</span>
           </Link>
         )
       })}

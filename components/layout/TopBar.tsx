@@ -74,7 +74,7 @@ export function TopBar() {
           {/* Right */}
           <div className="flex items-center gap-1">
             {/* زر بيع منتج للمطورين */}
-            {(role === 'developer' || role === 'admin') && (
+            {role === 'developer' && (
               <Link
                 href="/developer/products/new"
                 className="flex items-center gap-1.5 px-3 py-1.5 bg-neutral-900 dark:bg-white text-white dark:text-neutral-900 rounded-xl text-xs font-bold hover:opacity-90 transition-opacity me-1"
