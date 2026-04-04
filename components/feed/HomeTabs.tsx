@@ -12,7 +12,7 @@ const TABS = [
   { key: 'top', label: '🔥 الأكثر مبيعاً' },
 ] as const
 
-export function HomeTabs({ newest, topSelling }: Props) {
+export function FeedTabs({ newest, topSelling }: Props) {
   const [active, setActive] = useState<'newest' | 'top'>('newest')
   const products = active === 'newest' ? newest : topSelling
 
@@ -58,3 +58,6 @@ export function HomeTabs({ newest, topSelling }: Props) {
     </section>
   )
 }
+
+// Export HomeTabs as alias
+export { FeedTabs as HomeTabs }
