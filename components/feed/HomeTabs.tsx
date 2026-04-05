@@ -12,13 +12,12 @@ const TABS = [
   { key: 'top', label: '🔥 الأكثر مبيعاً' },
 ] as const
 
-export function FeedTabs({ newest, topSelling }: Props) {
+export function HomeTabs({ newest, topSelling }: Props) {
   const [active, setActive] = useState<'newest' | 'top'>('newest')
   const products = active === 'newest' ? newest : topSelling
 
   return (
     <section className="px-4" aria-labelledby="products-tabs">
-      {/* Tabs */}
       <div className="flex gap-2 mb-4" role="tablist" aria-label="تصنيف المنتجات">
         {TABS.map(tab => (
           <button
@@ -38,11 +37,9 @@ export function FeedTabs({ newest, topSelling }: Props) {
         ))}
       </div>
 
-      {/* Products Grid */}
       <div
         id={`panel-${active}`}
         role="tabpanel"
-        aria-label={active === 'newest' ? 'الأحدث' : 'الأكثر مبيعاً'}
         className="grid grid-cols-2 gap-3"
       >
         {products.length === 0 ? (
@@ -59,5 +56,4 @@ export function FeedTabs({ newest, topSelling }: Props) {
   )
 }
 
-// Export HomeTabs as alias
-export { FeedTabs as HomeTabs }
+export { HomeTabs as FeedTabs }
