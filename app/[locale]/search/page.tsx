@@ -1,4 +1,4 @@
-﻿'use client'
+'use client'
 import { Suspense, useState, useEffect, useCallback } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
