@@ -19,7 +19,7 @@ interface Props {
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const resolvedParams = await params
-  const id = resolvedParams.id || resolvedParams.nxtPid as string
+  const id = resolvedParams.id || (resolvedParams as any).nxtPid as string
   const supabase = await createClient()
   const { data: product } = await supabase
     .from('digital_products')
@@ -43,7 +43,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 export default async function ProductPage({ params }: Props) {
   const resolvedParams = await params
   const id = resolvedParams.id || resolvedParams.nxtPid as string
-  const locale = resolvedParams.locale || resolvedParams.nxtPlocale as string || 'ar'
+  const locale = resolvedParams.locale || (resolvedParams as any).nxtPlocale || 'ar'
   const supabase = await createClient()
 
   // جلب المنتج
