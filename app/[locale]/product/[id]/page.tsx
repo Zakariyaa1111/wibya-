@@ -1,7 +1,7 @@
-import { createClient } from '@/lib/supabase/server'
+﻿import { createClient } from '@/lib/supabase/server'
 import { notFound } from 'next/navigation'
 import Image from 'next/image'
-import Link from 'next/link'
+import { Link } from '@/lib/i18n/navigation'
 import { ProductActions } from '@/components/product/ProductActions'
 import { ProductGallery } from '@/components/product/ProductGallery'
 import { TopBar } from '@/components/layout/TopBar'
@@ -50,7 +50,7 @@ export default async function ProductPage({ params }: Props) {
       *,
       profiles (
         id, full_name, store_name, store_image, bio,
-        website, github, twitter, is_verified,
+        website, github, twitter, verified,
         followers_count, total_sales
       ),
       product_reviews (
@@ -331,7 +331,7 @@ export default async function ProductPage({ params }: Props) {
                   <p className="font-semibold text-sm text-neutral-900 dark:text-white group-hover:underline">
                     {developer?.store_name || developer?.full_name || 'مطور'}
                   </p>
-                  {developer?.is_verified && (
+                  {developer?.verified && (
                     <BadgeCheck size={14} className="text-blue-500" aria-label="مطور موثق" />
                   )}
                 </div>
