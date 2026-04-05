@@ -1,4 +1,4 @@
-﻿import Link from 'next/link'
+﻿import { Link } from '@/lib/i18n/navigation'
 import Image from 'next/image'
 import { Shield, Star, Download, BadgeCheck, Package } from 'lucide-react'
 
