@@ -1,4 +1,4 @@
-'use client'
+﻿'use client'
 import { Suspense, useState, useEffect, useCallback } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
@@ -52,7 +52,7 @@ function SearchContent() {
     let q = supabase
       .from('digital_products')
       .select(
-        'id, title, price, original_price, preview_images, category, average_rating, sales_count, quality_badge, claude_score, profiles!developer_id(full_name, store_name, is_verified)',
+        'id, title, price, original_price, preview_images, category, average_rating, sales_count, quality_badge, claude_score, profiles!developer_id(full_name, store_name, verified)',
         { count: 'exact' }
       )
       .eq('status', 'active')

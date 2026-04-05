@@ -1,4 +1,4 @@
-import { createClient } from '@/lib/supabase/server'
+﻿import { createClient } from '@/lib/supabase/server'
 import { TopBar } from '@/components/layout/TopBar'
 import { BottomNav } from '@/components/layout/BottomNav'
 import { ProductCard } from '@/components/product/ProductCard'
@@ -18,22 +18,22 @@ export default async function HomePage() {
     { data: topDevelopers },
   ] = await Promise.all([
     supabase.from('digital_products')
-      .select('id, title, price, original_price, preview_images, category, average_rating, sales_count, quality_badge, claude_score, profiles!developer_id(full_name, store_name, is_verified)')
+      .select('id, title, price, original_price, preview_images, category, average_rating, sales_count, quality_badge, claude_score, profiles!developer_id(full_name, store_name, verified)')
       .eq('status', 'active')
       .eq('featured', true)
       .limit(6),
     supabase.from('digital_products')
-      .select('id, title, price, original_price, preview_images, category, average_rating, sales_count, quality_badge, claude_score, profiles!developer_id(full_name, store_name, is_verified)')
+      .select('id, title, price, original_price, preview_images, category, average_rating, sales_count, quality_badge, claude_score, profiles!developer_id(full_name, store_name, verified)')
       .eq('status', 'active')
       .order('created_at', { ascending: false })
       .limit(8),
     supabase.from('digital_products')
-      .select('id, title, price, original_price, preview_images, category, average_rating, sales_count, quality_badge, claude_score, profiles!developer_id(full_name, store_name, is_verified)')
+      .select('id, title, price, original_price, preview_images, category, average_rating, sales_count, quality_badge, claude_score, profiles!developer_id(full_name, store_name, verified)')
       .eq('status', 'active')
       .order('sales_count', { ascending: false })
       .limit(8),
     supabase.from('profiles')
-      .select('id, full_name, store_name, store_image, is_verified, total_sales, followers_count')
+      .select('id, full_name, store_name, store_image, verified, total_sales, followers_count')
       .eq('role', 'developer')
       .order('total_sales', { ascending: false })
       .limit(6),
@@ -171,7 +171,7 @@ export default async function HomePage() {
                       {dev.store_name || dev.full_name}
                     </p>
                     <p className="text-[10px] text-neutral-400 mt-0.5">{dev.total_sales || 0} مبيعة</p>
-                    {dev.is_verified && (
+                    {dev.verified && (
                       <span className="text-[9px] text-blue-500 font-medium">موثق ✓</span>
                     )}
                   </div>

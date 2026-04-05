@@ -1,4 +1,4 @@
-import Link from 'next/link'
+﻿import Link from 'next/link'
 import Image from 'next/image'
 import { Shield, Star, Download, BadgeCheck, Package } from 'lucide-react'
 
@@ -14,7 +14,7 @@ interface ProductCardProps {
     sales_count?: number | null
     quality_badge?: boolean | null
     claude_score?: number | null
-    profiles?: { full_name?: string | null; store_name?: string | null; is_verified?: boolean | null } | { full_name?: string | null; store_name?: string | null; is_verified?: boolean | null }[] | null
+    profiles?: { full_name?: string | null; store_name?: string | null; verified?: boolean | null } | { full_name?: string | null; store_name?: string | null; verified?: boolean | null }[] | null
   }
   featured?: boolean
 }
@@ -84,7 +84,7 @@ export function ProductCard({ product, featured = false }: ProductCardProps) {
 
           <div className="flex items-center gap-1 mb-2">
             <span className="text-[10px] text-neutral-400 truncate">{developerName}</span>
-            {developer?.is_verified && (
+            {developer?.verified && (
               <BadgeCheck size={11} className="text-blue-500 shrink-0" aria-label="موثق" />
             )}
           </div>

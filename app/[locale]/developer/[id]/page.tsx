@@ -1,4 +1,4 @@
-import { createClient } from '@/lib/supabase/server'
+﻿import { createClient } from '@/lib/supabase/server'
 import { notFound } from 'next/navigation'
 import Image from 'next/image'
 import Link from 'next/link'
@@ -46,7 +46,7 @@ export default async function DeveloperProfilePage({ params }: Props) {
 
   const { data: products } = await supabase
     .from('digital_products')
-    .select('id, title, price, original_price, preview_images, category, average_rating, sales_count, quality_badge, claude_score, profiles(full_name, store_name, is_verified)')
+    .select('id, title, price, original_price, preview_images, category, average_rating, sales_count, quality_badge, claude_score, profiles(full_name, store_name, verified)')
     .eq('developer_id', id)
     .eq('status', 'active')
     .order('sales_count', { ascending: false })
@@ -95,7 +95,7 @@ export default async function DeveloperProfilePage({ params }: Props) {
                 <h1 className="text-xl font-bold text-neutral-900 dark:text-white">
                   {developer.store_name || developer.full_name}
                 </h1>
-                {developer.is_verified && (
+                {developer.verified && (
                   <BadgeCheck size={18} className="text-blue-500" aria-label="مطور موثق" />
                 )}
               </div>
