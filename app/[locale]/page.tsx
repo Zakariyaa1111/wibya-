@@ -7,6 +7,7 @@ import Link from 'next/link'
 import Image from 'next/image'
 import { Search, TrendingUp, Shield, Star, Code2, Zap } from 'lucide-react'
 
+export const revalidate = 0
 export default async function HomePage() {
   const supabase = await createClient()
 
