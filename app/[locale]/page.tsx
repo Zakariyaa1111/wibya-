@@ -18,19 +18,19 @@ export default async function HomePage() {
   ] = await Promise.all([
     // منتجات مميزة
     supabase.from('digital_products')
-      .select('id, title, price, original_price, preview_images, category, average_rating, sales_count, quality_badge, claude_score, profiles(full_name, store_name, is_verified)')
+      .select('id, title, price, original_price, preview_images, category, average_rating, sales_count, quality_badge, claude_score, profiles!developer_id(full_name, store_name, is_verified)')
       .eq('status', 'active')
       .eq('featured', true)
       .limit(6),
     // الأحدث
     supabase.from('digital_products')
-      .select('id, title, price, original_price, preview_images, category, average_rating, sales_count, quality_badge, claude_score, profiles(full_name, store_name, is_verified)')
+      .select('id, title, price, original_price, preview_images, category, average_rating, sales_count, quality_badge, claude_score,profiles!developer_id(full_name, store_name, is_verified)')
       .eq('status', 'active')
       .order('created_at', { ascending: false })
       .limit(8),
     // الأكثر مبيعاً
     supabase.from('digital_products')
-      .select('id, title, price, original_price, preview_images, category, average_rating, sales_count, quality_badge, claude_score, profiles(full_name, store_name, is_verified)')
+      .select('id, title, price, original_price, preview_images, category, average_rating, sales_count, quality_badge, claude_score, profiles!developer_id(full_name, store_name, is_verified)')
       .eq('status', 'active')
       .order('sales_count', { ascending: false })
       .limit(8),
