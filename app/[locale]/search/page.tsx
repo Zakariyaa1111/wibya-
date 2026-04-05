@@ -1,4 +1,4 @@
-'use client'
+﻿'use client'
 import { Suspense, useState, useEffect, useCallback } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
@@ -8,21 +8,21 @@ import { ProductCard } from '@/components/product/ProductCard'
 import { Search, SlidersHorizontal, X, Shield } from 'lucide-react'
 
 const CATEGORIES = [
-  { key: '', label: 'الكل' },
-  { key: 'template', label: '🛍️ قوالب' },
-  { key: 'tool', label: '🔧 أدوات' },
-  { key: 'course', label: '🎓 دورات' },
-  { key: 'ui_kit', label: '🎨 UI Kit' },
-  { key: 'saas', label: '⚡ SaaS' },
-  { key: 'other', label: '📦 أخرى' },
+  { key: '', label: 'Ø§Ù„ÙƒÙ„' },
+  { key: 'template', label: 'ðŸ›ï¸ Ù‚ÙˆØ§Ù„Ø¨' },
+  { key: 'tool', label: 'ðŸ”§ Ø£Ø¯ÙˆØ§Øª' },
+  { key: 'course', label: 'ðŸŽ“ Ø¯ÙˆØ±Ø§Øª' },
+  { key: 'ui_kit', label: 'ðŸŽ¨ UI Kit' },
+  { key: 'saas', label: 'âš¡ SaaS' },
+  { key: 'other', label: 'ðŸ“¦ Ø£Ø®Ø±Ù‰' },
 ]
 
 const SORT_OPTIONS = [
-  { key: 'newest', label: 'الأحدث' },
-  { key: 'top_selling', label: 'الأكثر مبيعاً' },
-  { key: 'top_rated', label: 'الأعلى تقييماً' },
-  { key: 'price_asc', label: 'السعر: الأقل' },
-  { key: 'price_desc', label: 'السعر: الأعلى' },
+  { key: 'newest', label: 'Ø§Ù„Ø£Ø­Ø¯Ø«' },
+  { key: 'top_selling', label: 'Ø§Ù„Ø£ÙƒØ«Ø± Ù…Ø¨ÙŠØ¹Ø§Ù‹' },
+  { key: 'top_rated', label: 'Ø§Ù„Ø£Ø¹Ù„Ù‰ ØªÙ‚ÙŠÙŠÙ…Ø§Ù‹' },
+  { key: 'price_asc', label: 'Ø§Ù„Ø³Ø¹Ø±: Ø§Ù„Ø£Ù‚Ù„' },
+  { key: 'price_desc', label: 'Ø§Ù„Ø³Ø¹Ø±: Ø§Ù„Ø£Ø¹Ù„Ù‰' },
 ]
 
 function SearchContent() {
@@ -51,7 +51,7 @@ function SearchContent() {
     const supabase = createClient()
     let q = supabase
       .from('digital_products')
-      .select('id, title, price, original_price, preview_images, category, average_rating, sales_count, quality_badge, claude_score, profiles(full_name, store_name, is_verified)', { count: 'exact' })
+      .select('id, title, price, original_price, preview_images, category, average_rating, sales_count, quality_badge, claude_score, profiles!developer_id(full_name, store_name, is_verified)', { count: 'exact' })
       .eq('status', 'active')
 
     if (query.trim()) q = q.ilike('title', `%${query.trim()}%`)
@@ -111,17 +111,17 @@ function SearchContent() {
             <input
               value={query}
               onChange={e => setQuery(e.target.value)}
-              placeholder="ابحث عن منتج..."
+              placeholder="Ø§Ø¨Ø­Ø« Ø¹Ù† Ù…Ù†ØªØ¬..."
               autoFocus
               className="w-full ps-9 pe-4 py-2.5 bg-neutral-100 dark:bg-neutral-800 rounded-2xl text-sm text-neutral-900 dark:text-white placeholder-neutral-400 outline-none border border-transparent focus:border-neutral-300 dark:focus:border-neutral-600 transition-colors"
-              aria-label="البحث عن منتج"
+              aria-label="Ø§Ù„Ø¨Ø­Ø« Ø¹Ù† Ù…Ù†ØªØ¬"
             />
             {query && (
               <button
                 type="button"
                 onClick={() => { setQuery(''); search(true) }}
                 className="absolute end-3 top-1/2 -translate-y-1/2"
-                aria-label="مسح البحث"
+                aria-label="Ù…Ø³Ø­ Ø§Ù„Ø¨Ø­Ø«"
               >
                 <X size={14} className="text-neutral-400" aria-hidden="true" />
               </button>
@@ -135,7 +135,7 @@ function SearchContent() {
                 ? 'bg-neutral-900 dark:bg-white border-neutral-900 dark:border-white text-white dark:text-neutral-900'
                 : 'bg-neutral-100 dark:bg-neutral-800 border-transparent text-neutral-500'
             }`}
-            aria-label="الفلاتر"
+            aria-label="Ø§Ù„ÙÙ„Ø§ØªØ±"
             aria-expanded={showFilters}
           >
             <SlidersHorizontal size={16} aria-hidden="true" />
@@ -144,7 +144,7 @@ function SearchContent() {
         </form>
 
         {/* Categories */}
-        <div className="flex gap-1.5 overflow-x-auto scrollbar-hide" role="list" aria-label="الفئات">
+        <div className="flex gap-1.5 overflow-x-auto scrollbar-hide" role="list" aria-label="Ø§Ù„ÙØ¦Ø§Øª">
           {CATEGORIES.map(cat => (
             <button
               key={cat.key}
@@ -167,7 +167,7 @@ function SearchContent() {
           <div className="mt-3 space-y-3 pt-3 border-t border-neutral-100 dark:border-neutral-800">
             {/* Sort */}
             <div>
-              <p className="text-xs font-medium text-neutral-500 dark:text-neutral-400 mb-2">الترتيب</p>
+              <p className="text-xs font-medium text-neutral-500 dark:text-neutral-400 mb-2">Ø§Ù„ØªØ±ØªÙŠØ¨</p>
               <div className="flex gap-1.5 overflow-x-auto scrollbar-hide">
                 {SORT_OPTIONS.map(opt => (
                   <button
@@ -188,25 +188,25 @@ function SearchContent() {
 
             {/* Price Range */}
             <div>
-              <p className="text-xs font-medium text-neutral-500 dark:text-neutral-400 mb-2">نطاق السعر (USD)</p>
+              <p className="text-xs font-medium text-neutral-500 dark:text-neutral-400 mb-2">Ù†Ø·Ø§Ù‚ Ø§Ù„Ø³Ø¹Ø± (USD)</p>
               <div className="flex gap-2">
                 <input
                   value={minPrice}
                   onChange={e => setMinPrice(e.target.value)}
                   type="number"
-                  placeholder="من"
+                  placeholder="Ù…Ù†"
                   className="flex-1 px-3 py-2 bg-neutral-100 dark:bg-neutral-800 rounded-xl text-xs text-neutral-900 dark:text-white outline-none"
                   dir="ltr"
-                  aria-label="الحد الأدنى للسعر"
+                  aria-label="Ø§Ù„Ø­Ø¯ Ø§Ù„Ø£Ø¯Ù†Ù‰ Ù„Ù„Ø³Ø¹Ø±"
                 />
                 <input
                   value={maxPrice}
                   onChange={e => setMaxPrice(e.target.value)}
                   type="number"
-                  placeholder="إلى"
+                  placeholder="Ø¥Ù„Ù‰"
                   className="flex-1 px-3 py-2 bg-neutral-100 dark:bg-neutral-800 rounded-xl text-xs text-neutral-900 dark:text-white outline-none"
                   dir="ltr"
-                  aria-label="الحد الأقصى للسعر"
+                  aria-label="Ø§Ù„Ø­Ø¯ Ø§Ù„Ø£Ù‚ØµÙ‰ Ù„Ù„Ø³Ø¹Ø±"
                 />
               </div>
             </div>
@@ -228,7 +228,7 @@ function SearchContent() {
               </div>
               <span className="text-sm text-neutral-700 dark:text-neutral-300 flex items-center gap-1.5">
                 <Shield size={13} className="text-green-500" aria-hidden="true" />
-                المنتجات المفحوصة فقط
+                Ø§Ù„Ù…Ù†ØªØ¬Ø§Øª Ø§Ù„Ù…ÙØ­ÙˆØµØ© ÙÙ‚Ø·
               </span>
             </label>
 
@@ -238,14 +238,14 @@ function SearchContent() {
                 onClick={() => { search(true); setShowFilters(false) }}
                 className="flex-1 py-2.5 bg-neutral-900 dark:bg-white text-white dark:text-neutral-900 rounded-xl text-xs font-semibold"
               >
-                تطبيق الفلاتر
+                ØªØ·Ø¨ÙŠÙ‚ Ø§Ù„ÙÙ„Ø§ØªØ±
               </button>
               {hasFilters && (
                 <button
                   onClick={() => { clearFilters(); search(true) }}
                   className="px-4 py-2.5 border border-neutral-200 dark:border-neutral-700 text-neutral-600 dark:text-neutral-400 rounded-xl text-xs"
                 >
-                  مسح
+                  Ù…Ø³Ø­
                 </button>
               )}
             </div>
@@ -258,8 +258,8 @@ function SearchContent() {
         {/* Count */}
         {(query || hasFilters) && (
           <p className="text-xs text-neutral-400 dark:text-neutral-500 mb-3">
-            {total.toLocaleString()} نتيجة
-            {query && ` لـ "${query}"`}
+            {total.toLocaleString()} Ù†ØªÙŠØ¬Ø©
+            {query && ` Ù„Ù€ "${query}"`}
           </p>
         )}
 
@@ -273,10 +273,10 @@ function SearchContent() {
           <div className="flex flex-col items-center justify-center py-20 text-center">
             <Search size={40} className="text-neutral-300 dark:text-neutral-700 mb-3" aria-hidden="true" />
             <p className="font-semibold text-neutral-900 dark:text-white mb-1">
-              {query || hasFilters ? 'لا توجد نتائج' : 'ابحث عن أي منتج'}
+              {query || hasFilters ? 'Ù„Ø§ ØªÙˆØ¬Ø¯ Ù†ØªØ§Ø¦Ø¬' : 'Ø§Ø¨Ø­Ø« Ø¹Ù† Ø£ÙŠ Ù…Ù†ØªØ¬'}
             </p>
             <p className="text-neutral-400 text-sm">
-              {query || hasFilters ? 'جرب كلمات مختلفة أو غير الفلاتر' : 'قوالب، أدوات، دورات...'}
+              {query || hasFilters ? 'Ø¬Ø±Ø¨ ÙƒÙ„Ù…Ø§Øª Ù…Ø®ØªÙ„ÙØ© Ø£Ùˆ ØºÙŠØ± Ø§Ù„ÙÙ„Ø§ØªØ±' : 'Ù‚ÙˆØ§Ù„Ø¨ØŒ Ø£Ø¯ÙˆØ§ØªØŒ Ø¯ÙˆØ±Ø§Øª...'}
             </p>
           </div>
         ) : (
@@ -293,7 +293,7 @@ function SearchContent() {
                 disabled={loading}
                 className="w-full mt-4 py-3 bg-neutral-100 dark:bg-neutral-800 text-neutral-600 dark:text-neutral-400 rounded-2xl text-sm font-medium hover:bg-neutral-200 dark:hover:bg-neutral-700 transition-colors disabled:opacity-50"
               >
-                {loading ? 'جاري التحميل...' : `تحميل المزيد (${total - results.length} متبقي)`}
+                {loading ? 'Ø¬Ø§Ø±ÙŠ Ø§Ù„ØªØ­Ù…ÙŠÙ„...' : `ØªØ­Ù…ÙŠÙ„ Ø§Ù„Ù…Ø²ÙŠØ¯ (${total - results.length} Ù…ØªØ¨Ù‚ÙŠ)`}
               </button>
             )}
           </>
