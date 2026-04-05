@@ -48,14 +48,14 @@ export default async function ProductPage({ params }: Props) {
     .from('digital_products')
     .select(`
       *,
-      profiles (
+      profiles!developer_id (
         id, full_name, store_name, store_image, bio,
         website, github, twitter, verified,
         followers_count, total_sales
       ),
       product_reviews (
         id, rating, comment, created_at,
-        profiles (full_name, store_name)
+        profiles!developer_id (full_name, store_name)
       )
     `)
     .eq('id', id)
