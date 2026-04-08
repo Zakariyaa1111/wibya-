@@ -42,8 +42,8 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
 export default async function ProductPage({ params }: Props) {
   const resolvedParams = await params
-  const id = resolvedParams.id || resolvedParams.nxtPid as string
-  const locale = resolvedParams.locale || (resolvedParams as any).nxtPlocale || 'ar'
+  const id = resolvedParams.id
+  const locale = resolvedParams.locale || 'ar'
   const supabase = await createClient()
 
   // جلب المنتج
