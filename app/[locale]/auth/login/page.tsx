@@ -7,7 +7,15 @@ import { createClient } from '@/lib/supabase/client'
 import { Eye, EyeOff, ArrowRight } from 'lucide-react'
 import Image from 'next/image'
 import toast from 'react-hot-toast'
-
+// تعريف نوع grecaptcha لأن TypeScript لا يعرفه
+declare global {
+  interface Window {
+    grecaptcha: {
+      ready: (callback: () => void) => void
+      execute: (siteKey: string, options: { action: string }) => Promise<string>
+    }
+  }
+}
 function LoginForm() {
   const t = useTranslations('auth')
   const router = useRouter()
@@ -17,6 +25,21 @@ function LoginForm() {
   const [showPass, setShowPass] = useState(false)
   const [loading, setLoading] = useState(false)
   const [googleLoading, setGoogleLoading] = useState(false)
+  // توليد رمز reCAPTCHA
+  async function getRecaptchaToken(action: string): Promise<string> {
+    return new Promise((resolve, reject) => {
+      if (!window.grecaptcha) {
+        reject('reCAPTCHA not loaded')
+        return
+      }
+      window.grecaptcha.ready(() => {
+        window.grecaptcha
+          .execute(process.env.NEXT_PUBLIC_RECAPTCHA_SITE_KEY!, { action })
+          .then(resolve)
+          .catch(reject)
+      })
+    })
+  }
 
   // ✅ دالة التوجيه الصحيحة — بدون /ar/ar
   function redirectByRole(role: string) {
@@ -32,6 +55,36 @@ function LoginForm() {
   async function handleLogin(e: React.FormEvent) {
     e.preventDefault()
     setLoading(true)
+
+    // الخطوة 1: توليد رمز reCAPTCHA
+    let recaptchaToken = ''
+    try {
+      recaptchaToken = await getRecaptchaToken('login')
+    } catch {
+      toast.error('فشل التحقق الأمني، أعد تحميل الصفحة')
+      setLoading(false)
+      return
+    }
+
+    // الخطوة 2: التحقق من الرمز في السيرفر
+    const verifyResponse = await fetch('/api/recaptcha/verify', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        token: recaptchaToken,
+        action: 'login',
+      }),
+    })
+
+    const verifyData = await verifyResponse.json()
+
+    if (!verifyData.success) {
+      toast.error('فشل التحقق الأمني')
+      setLoading(false)
+      return
+    }
+
+    // الخطوة 3: تسجيل الدخول
     const supabase = createClient()
     const { error } = await supabase.auth.signInWithPassword({ email, password })
     if (error) {
