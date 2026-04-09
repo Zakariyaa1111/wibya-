@@ -40,12 +40,10 @@ export default async function HomePage() {
   ])
 
   const CATEGORIES = [
-    { key: 'ecommerce', label: 'قوالب متاجر', icon: '🛍️', color: 'bg-blue-50 dark:bg-blue-900/20' },
-    { key: 'portfolio', label: 'قوالب بورتفوليو', icon: '🎨', color: 'bg-purple-50 dark:bg-purple-900/20' },
-    { key: 'landing', label: 'صفحات هبوط', icon: '🚀', color: 'bg-green-50 dark:bg-green-900/20' },
-    { key: 'blog', label: 'قوالب مدونات', icon: '📝', color: 'bg-pink-50 dark:bg-pink-900/20' },
-    { key: 'dashboard', label: 'لوحات تحكم', icon: '📊', color: 'bg-amber-50 dark:bg-amber-900/20' },
-    { key: 'saas', label: 'قوالب SaaS', icon: '⚡', color: 'bg-cyan-50 dark:bg-cyan-900/20' },
+    { key: 'ecommerce', label: 'قوالب تجارة إلكترونية', image: '/cat-ecommerce.png' },
+    { key: 'portfolio', label: 'قوالب حافظة أعمال', image: '/cat-portfolio.png' },
+    { key: 'blog', label: 'قوالب مدونات وأخبار', image: '/cat-blog.png' },
+    { key: 'corporate', label: 'قوالب شركات', image: '/cat-corporate.png' },
   ]
 
   return (
@@ -54,8 +52,8 @@ export default async function HomePage() {
 
       <main className="pb-24">
 
-        {/* Hero */}
-        <div className="relative px-4 pt-8 pb-10 text-center overflow-hidden">
+        {/* Hero — صورة خلفية + خانة البحث فقط */}
+        <div className="relative px-4 pt-12 pb-14 overflow-hidden">
           <Image
             src="/hero-bg.png"
             alt=""
@@ -64,54 +62,44 @@ export default async function HomePage() {
             priority
             aria-hidden="true"
           />
-          <div className="absolute inset-0 bg-gradient-to-b from-black/60 via-black/40 to-black/70" />
-          <div className="relative max-w-lg mx-auto">
-            <div className="flex items-center justify-center gap-2 mb-4 animate-[fadeInDown_0.6s_ease-out]">
-              <Image src="/logo.png" alt="Wibya" width={40} height={40} className="object-contain" />
-              <span className="text-white font-bold text-xl">Wibya</span>
-            </div>
-            <h1 className="text-2xl font-bold text-white mb-2 leading-tight animate-[fadeInUp_0.7s_ease-out]">
-              أفضل القوالب الإلكترونية
-            </h1>
-            <p className="text-white/80 text-sm mb-6 animate-[fadeInUp_0.8s_ease-out]">
-              اكتشف وحمّل قوالب مواقع احترافية مصممة بعناية
-            </p>
-
+          <div className="absolute inset-0 bg-gradient-to-b from-black/30 via-transparent to-black/40" />
+          <div className="relative max-w-lg mx-auto" style={{ animation: 'fadeInUp 0.7s ease-out both' }}>
             <Link href="/search"
-              className="flex items-center gap-3 bg-white/10 hover:bg-white/20 backdrop-blur-sm border border-white/30 rounded-2xl px-4 py-3.5 transition-colors w-full max-w-sm mx-auto animate-[fadeInUp_0.9s_ease-out]"
+              className="flex items-center gap-3 bg-white/90 dark:bg-neutral-900/90 backdrop-blur-md border border-white/50 dark:border-neutral-700 rounded-2xl px-4 py-4 transition-all hover:bg-white dark:hover:bg-neutral-800 shadow-lg w-full max-w-sm mx-auto"
               aria-label="البحث في القوالب"
             >
-              <Search size={18} className="text-white/60" aria-hidden="true" />
-              <span className="text-white/60 text-sm">ابحث عن قوالب مواقع...</span>
+              <Search size={20} className="text-neutral-400" aria-hidden="true" />
+              <span className="text-neutral-400 text-sm">ابحث عن قوالب مواقع...</span>
             </Link>
-
-            <div className="flex justify-center gap-6 mt-6 animate-[fadeInUp_1s_ease-out]">
-              {[
-                { value: `${(newest?.length || 0) + (topSelling?.length || 0)}+`, label: 'قالب' },
-                { value: `${topDevelopers?.length || 0}+`, label: 'مطور' },
-                { value: '100%', label: 'مفحوص' },
-              ].map(({ value, label }) => (
-                <div key={label} className="text-center">
-                  <p className="text-white font-bold text-lg">{value}</p>
-                  <p className="text-white/60 text-xs">{label}</p>
-                </div>
-              ))}
-            </div>
           </div>
         </div>
 
-        {/* Categories */}
-        <div className="px-4 py-5">
-          <h2 className="font-bold text-neutral-900 dark:text-white text-sm mb-3">الفئات</h2>
-          <div className="grid grid-cols-3 gap-2">
-            {CATEGORIES.map(cat => (
+        {/* Categories — صور الفئات مع حركات */}
+        <div className="px-4 py-6">
+          <h2
+            className="font-bold text-neutral-900 dark:text-white text-sm mb-4"
+            style={{ animation: 'fadeInUp 0.5s ease-out both' }}
+          >
+            تصفح القوالب
+          </h2>
+          <div className="grid grid-cols-2 gap-3">
+            {CATEGORIES.map((cat, i) => (
               <Link
                 key={cat.key}
                 href={`/search?category=${cat.key}`}
-                className={`${cat.color} rounded-2xl p-3 text-center hover:scale-[1.02] transition-transform`}
+                className="group relative rounded-2xl overflow-hidden hover:shadow-lg transition-all duration-300 hover:scale-[1.02]"
+                style={{ animation: `fadeInUp 0.6s ease-out ${0.1 + i * 0.1}s both` }}
               >
-                <span className="text-2xl block mb-1" aria-hidden="true">{cat.icon}</span>
-                <p className="text-xs font-medium text-neutral-700 dark:text-neutral-300">{cat.label}</p>
+                <div className="relative aspect-[4/3]">
+                  <Image
+                    src={cat.image}
+                    alt={cat.label}
+                    fill
+                    className="object-cover transition-transform duration-500 group-hover:scale-110"
+                    sizes="50vw"
+                  />
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+                </div>
               </Link>
             ))}
           </div>
@@ -121,11 +109,15 @@ export default async function HomePage() {
         <div className="px-4 mb-5">
           <div className="grid grid-cols-3 gap-2">
             {[
-              { icon: Shield, text: 'كل منتج مفحوص بـ AI', color: 'text-green-500' },
+              { icon: Shield, text: 'كل قالب مفحوص بـ AI', color: 'text-green-500' },
               { icon: Star, text: 'تقييمات حقيقية', color: 'text-amber-500' },
               { icon: Zap, text: 'تحميل فوري', color: 'text-blue-500' },
-            ].map(({ icon: Icon, text, color }) => (
-              <div key={text} className="bg-white dark:bg-neutral-900 rounded-2xl border border-neutral-100 dark:border-neutral-800 p-3 text-center">
+            ].map(({ icon: Icon, text, color }, i) => (
+              <div
+                key={text}
+                className="bg-white dark:bg-neutral-900 rounded-2xl border border-neutral-100 dark:border-neutral-800 p-3 text-center"
+                style={{ animation: `fadeInUp 0.6s ease-out ${0.6 + i * 0.1}s both` }}
+              >
                 <Icon size={18} className={`${color} mx-auto mb-1.5`} aria-hidden="true" />
                 <p className="text-[10px] text-neutral-500 dark:text-neutral-400 leading-tight">{text}</p>
               </div>
@@ -136,25 +128,36 @@ export default async function HomePage() {
         {/* Featured */}
         {featured && featured.length > 0 && (
           <section className="px-4 mb-6" aria-labelledby="featured-title">
-            <h2 id="featured-title" className="font-bold text-neutral-900 dark:text-white text-sm flex items-center gap-2 mb-3">
+            <h2
+              id="featured-title"
+              className="font-bold text-neutral-900 dark:text-white text-sm flex items-center gap-2 mb-3"
+              style={{ animation: 'fadeInUp 0.6s ease-out 0.9s both' }}
+            >
               <TrendingUp size={15} className="text-amber-500" aria-hidden="true" />
-              منتجات مميزة
+              قوالب مميزة
             </h2>
             <div className="grid grid-cols-1 gap-3">
-              {featured.map(product => (
-                <ProductCard key={product.id} product={product as any} featured />
+              {featured.map((product, i) => (
+                <div key={product.id} style={{ animation: `fadeInUp 0.5s ease-out ${1 + i * 0.08}s both` }}>
+                  <ProductCard product={product as any} featured />
+                </div>
               ))}
             </div>
           </section>
         )}
 
         {/* Tabs */}
-        <HomeTabs newest={newest ?? []} topSelling={topSelling ?? []} />
+        <div style={{ animation: 'fadeInUp 0.6s ease-out 1.2s both' }}>
+          <HomeTabs newest={newest ?? []} topSelling={topSelling ?? []} />
+        </div>
 
         {/* Top Developers */}
         {topDevelopers && topDevelopers.length > 0 && (
           <section className="px-4 mt-6" aria-labelledby="developers-title">
-            <div className="flex items-center justify-between mb-3">
+            <div
+              className="flex items-center justify-between mb-3"
+              style={{ animation: 'fadeInUp 0.6s ease-out 1.4s both' }}
+            >
               <h2 id="developers-title" className="font-bold text-neutral-900 dark:text-white text-sm flex items-center gap-2">
                 <Code2 size={15} className="text-neutral-500" aria-hidden="true" />
                 أفضل المطورين
@@ -164,9 +167,12 @@ export default async function HomePage() {
               </Link>
             </div>
             <div className="flex gap-3 overflow-x-auto pb-2">
-              {topDevelopers.map((dev: any) => (
+              {topDevelopers.map((dev: any, i: number) => (
                 <Link key={dev.id} href={`/developer/${dev.id}`}>
-                  <div className="bg-white dark:bg-neutral-900 rounded-2xl border border-neutral-100 dark:border-neutral-800 p-4 text-center w-32 shrink-0">
+                  <div
+                    className="bg-white dark:bg-neutral-900 rounded-2xl border border-neutral-100 dark:border-neutral-800 p-4 text-center w-32 shrink-0 hover:shadow-md hover:scale-[1.03] transition-all duration-300"
+                    style={{ animation: `fadeInUp 0.5s ease-out ${1.5 + i * 0.08}s both` }}
+                  >
                     <div className="w-12 h-12 rounded-2xl bg-neutral-100 dark:bg-neutral-800 overflow-hidden mx-auto mb-2 flex items-center justify-center text-lg font-bold text-neutral-500">
                       {dev.store_image
                         ? <Image src={dev.store_image} alt={dev.store_name || ''} width={48} height={48} className="object-cover w-full h-full" />
@@ -188,7 +194,7 @@ export default async function HomePage() {
         )}
 
         {/* CTA */}
-        <div className="px-4 mt-6">
+        <div className="px-4 mt-6" style={{ animation: 'fadeInUp 0.6s ease-out 1.8s both' }}>
           <div className="bg-neutral-900 dark:bg-neutral-800 rounded-3xl p-5 text-center">
             <Code2 size={28} className="text-white/80 mx-auto mb-3" aria-hidden="true" />
             <h3 className="font-bold text-white text-base mb-1">أنت مطور؟</h3>

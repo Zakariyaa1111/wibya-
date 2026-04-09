@@ -58,7 +58,7 @@ export default async function ProductPage({ params }: Props) {
       ),
       product_reviews (
         id, rating, comment, created_at,
-        profiles!developer_id (full_name, store_name)
+        profiles (full_name, store_name)
       )
     `)
     .eq('id', id)
