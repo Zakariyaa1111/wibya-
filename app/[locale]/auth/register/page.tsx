@@ -7,6 +7,15 @@ import { ArrowRight, Check } from 'lucide-react'
 import Image from 'next/image'
 import toast from 'react-hot-toast'
 
+declare global {
+  interface Window {
+    grecaptcha: {
+      ready: (cb: () => void) => void
+      execute: (key: string, opts: { action: string }) => Promise<string>
+    }
+  }
+}
+
 type Role = 'buyer' | 'developer'
 
 const ROLES: { value: Role; label: string; emoji: string; desc: string }[] = [
@@ -39,10 +48,41 @@ export default function RegisterPage() {
   const [acceptTerms, setAcceptTerms] = useState(false)
   const [acceptCookies, setAcceptCookies] = useState(false)
 
+  async function getRecaptchaToken(action: string): Promise<string> {
+    return new Promise((resolve, reject) => {
+      if (!window.grecaptcha) { reject('reCAPTCHA not loaded'); return }
+      window.grecaptcha.ready(() => {
+        window.grecaptcha
+          .execute(process.env.NEXT_PUBLIC_RECAPTCHA_SITE_KEY!, { action })
+          .then(resolve).catch(reject)
+      })
+    })
+  }
+
   async function handleGoogleRegister() {
     if (!acceptTerms) { toast.error('يجب الموافقة على الشروط'); return }
     if (!acceptCookies) { toast.error('يجب الموافقة على الكوكيز'); return }
     setGoogleLoading(true)
+
+    try {
+      const recaptchaToken = await getRecaptchaToken('google_register')
+      const verifyRes = await fetch('/api/recaptcha/verify', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ token: recaptchaToken, action: 'google_register' }),
+      })
+      const verifyData = await verifyRes.json()
+      if (!verifyData.success) {
+        toast.error('فشل التحقق الأمني')
+        setGoogleLoading(false)
+        return
+      }
+    } catch {
+      toast.error('فشل التحقق الأمني')
+      setGoogleLoading(false)
+      return
+    }
+
     const supabase = createClient()
     localStorage.setItem('pending_role', role)
     localStorage.setItem('cookies_accepted', 'true')
@@ -62,6 +102,26 @@ export default function RegisterPage() {
     if (!acceptCookies) { toast.error('يجب الموافقة على الكوكيز'); return }
     if (password.length < 8) { toast.error('كلمة المرور يجب أن تكون 8 أحرف على الأقل'); return }
     setLoading(true)
+
+    try {
+      const recaptchaToken = await getRecaptchaToken('register')
+      const verifyRes = await fetch('/api/recaptcha/verify', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ token: recaptchaToken, action: 'register' }),
+      })
+      const verifyData = await verifyRes.json()
+      if (!verifyData.success) {
+        toast.error('فشل التحقق الأمني')
+        setLoading(false)
+        return
+      }
+    } catch {
+      toast.error('فشل التحقق الأمني')
+      setLoading(false)
+      return
+    }
+
     const supabase = createClient()
     const { error } = await supabase.auth.signUp({
       email, password,
@@ -78,7 +138,6 @@ export default function RegisterPage() {
       toast.error(error.message)
     } else {
       localStorage.setItem('cookies_accepted', 'true')
-      // تحديث role في profiles مباشرة
       const { data: { user } } = await supabase.auth.getUser()
       if (user) {
         await supabase.from('profiles').update({ role }).eq('id', user.id)

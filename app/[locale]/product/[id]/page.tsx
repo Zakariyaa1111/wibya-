@@ -19,7 +19,7 @@ interface Props {
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const resolvedParams = await params
-  const id = resolvedParams.id || (resolvedParams as any).nxtPid as string
+  const id = resolvedParams.id
   const supabase = await createClient()
   const { data: product } = await supabase
     .from('digital_products')

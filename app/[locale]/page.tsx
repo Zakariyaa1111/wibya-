@@ -40,12 +40,12 @@ export default async function HomePage() {
   ])
 
   const CATEGORIES = [
-    { key: 'template', label: 'قوالب متاجر', icon: '🛍️', color: 'bg-blue-50 dark:bg-blue-900/20' },
-    { key: 'tool', label: 'أدوات', icon: '🔧', color: 'bg-green-50 dark:bg-green-900/20' },
-    { key: 'course', label: 'دورات', icon: '🎓', color: 'bg-purple-50 dark:bg-purple-900/20' },
-    { key: 'ui_kit', label: 'UI Kits', icon: '🎨', color: 'bg-pink-50 dark:bg-pink-900/20' },
-    { key: 'saas', label: 'SaaS', icon: '⚡', color: 'bg-amber-50 dark:bg-amber-900/20' },
-    { key: 'other', label: 'أخرى', icon: '📦', color: 'bg-neutral-50 dark:bg-neutral-800' },
+    { key: 'ecommerce', label: 'قوالب متاجر', icon: '🛍️', color: 'bg-blue-50 dark:bg-blue-900/20' },
+    { key: 'portfolio', label: 'قوالب بورتفوليو', icon: '🎨', color: 'bg-purple-50 dark:bg-purple-900/20' },
+    { key: 'landing', label: 'صفحات هبوط', icon: '🚀', color: 'bg-green-50 dark:bg-green-900/20' },
+    { key: 'blog', label: 'قوالب مدونات', icon: '📝', color: 'bg-pink-50 dark:bg-pink-900/20' },
+    { key: 'dashboard', label: 'لوحات تحكم', icon: '📊', color: 'bg-amber-50 dark:bg-amber-900/20' },
+    { key: 'saas', label: 'قوالب SaaS', icon: '⚡', color: 'bg-cyan-50 dark:bg-cyan-900/20' },
   ]
 
   return (
@@ -55,39 +55,45 @@ export default async function HomePage() {
       <main className="pb-24">
 
         {/* Hero */}
-        <div className="bg-neutral-900 dark:bg-neutral-950 px-4 pt-8 pb-10 text-center relative overflow-hidden">
-          <div className="absolute inset-0 opacity-[0.03]" aria-hidden="true">
-            <div className="absolute top-0 left-1/2 -translate-x-1/2 w-96 h-96 bg-white rounded-full blur-3xl" />
-          </div>
+        <div className="relative px-4 pt-8 pb-10 text-center overflow-hidden">
+          <Image
+            src="/hero-bg.png"
+            alt=""
+            fill
+            className="object-cover"
+            priority
+            aria-hidden="true"
+          />
+          <div className="absolute inset-0 bg-gradient-to-b from-black/60 via-black/40 to-black/70" />
           <div className="relative max-w-lg mx-auto">
-            <div className="flex items-center justify-center gap-2 mb-4">
+            <div className="flex items-center justify-center gap-2 mb-4 animate-[fadeInDown_0.6s_ease-out]">
               <Image src="/logo.png" alt="Wibya" width={40} height={40} className="object-contain" />
               <span className="text-white font-bold text-xl">Wibya</span>
             </div>
-            <h1 className="text-2xl font-bold text-white mb-2 leading-tight">
-              سوق المنتجات الرقمية العربي
+            <h1 className="text-2xl font-bold text-white mb-2 leading-tight animate-[fadeInUp_0.7s_ease-out]">
+              أفضل القوالب الإلكترونية
             </h1>
-            <p className="text-white/60 text-sm mb-6">
-              قوالب، أدوات، ودورات تعليمية من أفضل المطورين العرب
+            <p className="text-white/80 text-sm mb-6 animate-[fadeInUp_0.8s_ease-out]">
+              اكتشف وحمّل قوالب مواقع احترافية مصممة بعناية
             </p>
 
             <Link href="/search"
-              className="flex items-center gap-3 bg-white/10 hover:bg-white/15 border border-white/20 rounded-2xl px-4 py-3.5 transition-colors w-full max-w-sm mx-auto"
-              aria-label="البحث في المنتجات"
+              className="flex items-center gap-3 bg-white/10 hover:bg-white/20 backdrop-blur-sm border border-white/30 rounded-2xl px-4 py-3.5 transition-colors w-full max-w-sm mx-auto animate-[fadeInUp_0.9s_ease-out]"
+              aria-label="البحث في القوالب"
             >
-              <Search size={18} className="text-white/50" aria-hidden="true" />
-              <span className="text-white/50 text-sm">ابحث عن قوالب، أدوات...</span>
+              <Search size={18} className="text-white/60" aria-hidden="true" />
+              <span className="text-white/60 text-sm">ابحث عن قوالب مواقع...</span>
             </Link>
 
-            <div className="flex justify-center gap-6 mt-6">
+            <div className="flex justify-center gap-6 mt-6 animate-[fadeInUp_1s_ease-out]">
               {[
-                { value: `${(newest?.length || 0) + (topSelling?.length || 0)}+`, label: 'منتج' },
+                { value: `${(newest?.length || 0) + (topSelling?.length || 0)}+`, label: 'قالب' },
                 { value: `${topDevelopers?.length || 0}+`, label: 'مطور' },
                 { value: '100%', label: 'مفحوص' },
               ].map(({ value, label }) => (
                 <div key={label} className="text-center">
                   <p className="text-white font-bold text-lg">{value}</p>
-                  <p className="text-white/50 text-xs">{label}</p>
+                  <p className="text-white/60 text-xs">{label}</p>
                 </div>
               ))}
             </div>
@@ -186,7 +192,7 @@ export default async function HomePage() {
           <div className="bg-neutral-900 dark:bg-neutral-800 rounded-3xl p-5 text-center">
             <Code2 size={28} className="text-white/80 mx-auto mb-3" aria-hidden="true" />
             <h3 className="font-bold text-white text-base mb-1">أنت مطور؟</h3>
-            <p className="text-white/60 text-xs mb-4">بيع منتجاتك لآلاف المشترين العرب</p>
+            <p className="text-white/60 text-xs mb-4">بيع قوالبك لآلاف المشترين العرب</p>
             <Link
               href="/auth/register?role=developer"
               className="inline-flex items-center gap-2 px-5 py-2.5 bg-white text-neutral-900 font-bold rounded-xl text-sm hover:bg-neutral-100 transition-colors"
