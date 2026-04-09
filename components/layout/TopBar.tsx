@@ -2,7 +2,6 @@
 import { useState, useEffect } from 'react'
 import { Bell, Menu, X, Moon, Sun, Info, FileText, Shield, Code2, ChevronLeft, ShoppingBag, Heart } from 'lucide-react'
 import { Link } from '@/lib/i18n/navigation'
-import Image from 'next/image'
 import { useNotifications } from '@/lib/hooks/useNotifications'
 import { createClient } from '@/lib/supabase/client'
 
@@ -78,7 +77,11 @@ export function TopBar() {
               <Menu size={20} className={scrolled ? 'text-neutral-600 dark:text-neutral-300' : 'text-white'} aria-hidden="true" />
             </button>
             <Link href="/" aria-label="الصفحة الرئيسية لـ Wibya" className="flex items-center gap-2">
-              <Image src="/logo.png" alt="شعار Wibya" width={32} height={32} className="object-contain" />
+              <div className={`w-8 h-8 rounded-lg flex items-center justify-center font-bold text-lg transition-colors ${
+                scrolled
+                  ? 'bg-neutral-900 dark:bg-white text-white dark:text-neutral-900'
+                  : 'bg-white/20 backdrop-blur-sm text-white'
+              }`}>W</div>
               <span className={`font-bold text-lg tracking-tight transition-colors ${
                 scrolled ? 'text-neutral-900 dark:text-white' : 'text-white'
               }`}>Wibya</span>
@@ -141,7 +144,7 @@ export function TopBar() {
       >
         <div className="flex items-center justify-between px-5 py-4 border-b border-neutral-100 dark:border-neutral-800">
           <div className="flex items-center gap-2.5">
-            <Image src="/logo.png" alt="شعار Wibya" width={28} height={28} className="object-contain" />
+            <div className="w-7 h-7 rounded-lg bg-neutral-900 dark:bg-white flex items-center justify-center font-bold text-sm text-white dark:text-neutral-900">W</div>
             <span className="font-bold text-neutral-900 dark:text-white">Wibya</span>
           </div>
           <button

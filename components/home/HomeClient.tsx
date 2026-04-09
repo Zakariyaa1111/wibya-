@@ -132,9 +132,9 @@ export default function HomeClient({ featured, newest, topSelling, topDevelopers
         <FadeInOnScroll>
           <div className="px-4 py-6">
             <div className="bg-white dark:bg-neutral-900 rounded-3xl border border-neutral-100 dark:border-neutral-800 p-6 grid grid-cols-3 gap-4">
-              <AnimatedCounter target={50} label="قالب احترافي" />
-              <AnimatedCounter target={100} label="مشتري" />
-              <AnimatedCounter target={15} label="مطور موثق" />
+              <AnimatedCounter target={newest.length + topSelling.length} label="قالب احترافي" />
+              <AnimatedCounter target={topDevelopers.length} label="مطور موثق" />
+              <AnimatedCounter target={featured.length} label="قالب مميز" />
             </div>
           </div>
         </FadeInOnScroll>
