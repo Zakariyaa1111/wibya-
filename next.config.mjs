@@ -11,6 +11,16 @@ const nextConfig = {
       { source: '/contact', destination: '/ar/contact', permanent: true },
     ]
   },
+  async headers() {
+    return [
+      {
+        source: '/manifest.json',
+        headers: [
+          { key: 'Content-Type', value: 'application/manifest+json' },
+        ],
+      },
+    ]
+  },
   images: {
     remotePatterns: [
       {
