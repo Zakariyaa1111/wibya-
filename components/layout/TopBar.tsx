@@ -10,22 +10,27 @@ export function TopBar() {
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [dark, setDark] = useState(false)
   const [role, setRole] = useState<string | null>(null)
+  const [scrolled, setScrolled] = useState(false)
   const { unreadCount } = useNotifications()
 
   useEffect(() => {
-    // Dark mode
     const saved = localStorage.getItem('theme')
     if (saved === 'dark' || (!saved && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
       setDark(true)
       document.documentElement.classList.add('dark')
     }
-    // Role
     const supabase = createClient()
     supabase.auth.getUser().then(({ data: { user } }) => {
       if (!user) return
       supabase.from('profiles').select('role').eq('id', user.id).single()
         .then(({ data }) => setRole(data?.role ?? null))
     })
+
+    function handleScroll() {
+      setScrolled(window.scrollY > 60)
+    }
+    window.addEventListener('scroll', handleScroll)
+    return () => window.removeEventListener('scroll', handleScroll)
   }, [])
 
   function toggleDark() {
@@ -49,35 +54,46 @@ export function TopBar() {
   return (
     <>
       <header
-        className="sticky top-0 z-40 bg-white/90 dark:bg-neutral-950/90 backdrop-blur-xl border-b border-neutral-100 dark:border-neutral-800/60"
+        className={`fixed top-0 left-0 right-0 z-40 transition-all duration-300 ${
+          scrolled
+            ? 'bg-white/90 dark:bg-neutral-950/90 backdrop-blur-xl border-b border-neutral-100 dark:border-neutral-800/60'
+            : 'bg-transparent'
+        }`}
         style={{ paddingTop: 'env(safe-area-inset-top, 0px)' }}
         role="banner"
       >
         <div className="flex items-center justify-between px-4 h-14 max-w-3xl mx-auto">
-          {/* Left: Menu + Logo */}
           <div className="flex items-center gap-2">
             <button
               onClick={() => setSidebarOpen(true)}
-              className="p-2 rounded-xl hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors"
+              className={`p-2 rounded-xl transition-colors ${
+                scrolled
+                  ? 'hover:bg-neutral-100 dark:hover:bg-neutral-800'
+                  : 'hover:bg-white/20'
+              }`}
               aria-label="فتح القائمة"
               aria-expanded={sidebarOpen}
               aria-controls="sidebar-nav"
             >
-              <Menu size={20} className="text-neutral-600 dark:text-neutral-300" aria-hidden="true" />
+              <Menu size={20} className={scrolled ? 'text-neutral-600 dark:text-neutral-300' : 'text-white'} aria-hidden="true" />
             </button>
             <Link href="/" aria-label="الصفحة الرئيسية لـ Wibya" className="flex items-center gap-2">
               <Image src="/logo.png" alt="شعار Wibya" width={32} height={32} className="object-contain" />
-              <span className="font-bold text-lg text-neutral-900 dark:text-white tracking-tight">Wibya</span>
+              <span className={`font-bold text-lg tracking-tight transition-colors ${
+                scrolled ? 'text-neutral-900 dark:text-white' : 'text-white'
+              }`}>Wibya</span>
             </Link>
           </div>
 
-          {/* Right */}
           <div className="flex items-center gap-1">
-            {/* زر بيع منتج للمطورين */}
             {role === 'developer' && (
               <Link
                 href="/developer/products/new"
-                className="flex items-center gap-1.5 px-3 py-1.5 bg-neutral-900 dark:bg-white text-white dark:text-neutral-900 rounded-xl text-xs font-bold hover:opacity-90 transition-opacity me-1"
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all me-1 ${
+                  scrolled
+                    ? 'bg-neutral-900 dark:bg-white text-white dark:text-neutral-900 hover:opacity-90'
+                    : 'bg-white/20 text-white backdrop-blur-sm hover:bg-white/30'
+                }`}
                 aria-label="رفع منتج جديد"
               >
                 <Code2 size={13} aria-hidden="true" />
@@ -85,13 +101,16 @@ export function TopBar() {
               </Link>
             )}
 
-            {/* إشعارات */}
             <Link
               href="/notifications"
-              className="p-2 rounded-xl hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors relative"
+              className={`p-2 rounded-xl transition-colors relative ${
+                scrolled
+                  ? 'hover:bg-neutral-100 dark:hover:bg-neutral-800'
+                  : 'hover:bg-white/20'
+              }`}
               aria-label={unreadCount > 0 ? `الإشعارات — ${unreadCount} غير مقروء` : 'الإشعارات'}
             >
-              <Bell size={20} className="text-neutral-600 dark:text-neutral-300" aria-hidden="true" />
+              <Bell size={20} className={scrolled ? 'text-neutral-600 dark:text-neutral-300' : 'text-white'} aria-hidden="true" />
               {unreadCount > 0 && (
                 <span
                   className="absolute top-1 right-1 min-w-[16px] h-4 bg-red-500 rounded-full flex items-center justify-center text-[9px] font-bold text-white px-0.5"
@@ -105,7 +124,6 @@ export function TopBar() {
         </div>
       </header>
 
-      {/* Overlay */}
       {sidebarOpen && (
         <div
           className="fixed inset-0 bg-black/50 z-50"
@@ -114,7 +132,6 @@ export function TopBar() {
         />
       )}
 
-      {/* Sidebar */}
       <aside
         id="sidebar-nav"
         role="navigation"
@@ -122,7 +139,6 @@ export function TopBar() {
         className={`fixed top-0 right-0 h-full w-72 bg-white dark:bg-neutral-900 z-50 shadow-2xl transition-transform duration-300 flex flex-col ${sidebarOpen ? 'translate-x-0' : 'translate-x-full'}`}
         style={{ paddingTop: 'env(safe-area-inset-top, 0px)' }}
       >
-        {/* Header */}
         <div className="flex items-center justify-between px-5 py-4 border-b border-neutral-100 dark:border-neutral-800">
           <div className="flex items-center gap-2.5">
             <Image src="/logo.png" alt="شعار Wibya" width={28} height={28} className="object-contain" />
@@ -137,7 +153,6 @@ export function TopBar() {
           </button>
         </div>
 
-        {/* Dark mode */}
         <div className="px-4 py-3 border-b border-neutral-100 dark:border-neutral-800">
           <button
             onClick={toggleDark}
@@ -167,7 +182,6 @@ export function TopBar() {
           </button>
         </div>
 
-        {/* Developer CTA */}
         {!role || role === 'buyer' ? (
           <div className="px-4 py-3 border-b border-neutral-100 dark:border-neutral-800">
             <Link
@@ -180,7 +194,7 @@ export function TopBar() {
                   <Code2 size={15} className="text-white dark:text-neutral-900" aria-hidden="true" />
                 </div>
                 <div className="text-start">
-                  <p className="text-sm font-bold text-white dark:text-neutral-900">بيع منتجاتك</p>
+                  <p className="text-sm font-bold text-white dark:text-neutral-900">بيع قوالبك</p>
                   <p className="text-[10px] text-white/60 dark:text-neutral-900/60">انضم كمطور</p>
                 </div>
               </div>
@@ -189,7 +203,6 @@ export function TopBar() {
           </div>
         ) : null}
 
-        {/* Nav links */}
         <nav className="flex-1 p-3 space-y-1 overflow-y-auto" aria-label="روابط الموقع">
           {menuLinks.map(({ icon: Icon, label, href }) => (
             <Link

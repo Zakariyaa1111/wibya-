@@ -53,7 +53,7 @@ export default async function HomePage() {
       <main className="pb-24">
 
         {/* Hero — صورة خلفية + خانة البحث فقط */}
-        <div className="relative px-4 pt-12 pb-14 overflow-hidden">
+        <div className="relative px-4 pt-24 pb-14 overflow-hidden">
           <Image
             src="/hero-bg.png"
             alt=""
@@ -74,31 +74,31 @@ export default async function HomePage() {
           </div>
         </div>
 
-        {/* Categories — صور الفئات مع حركات */}
+        {/* Categories — صور الفئات كبيرة تحت بعضها */}
         <div className="px-4 py-6">
           <h2
-            className="font-bold text-neutral-900 dark:text-white text-sm mb-4"
+            className="font-bold text-neutral-900 dark:text-white text-base mb-4"
             style={{ animation: 'fadeInUp 0.5s ease-out both' }}
           >
             تصفح القوالب
           </h2>
-          <div className="grid grid-cols-2 gap-3">
+          <div className="flex flex-col gap-4">
             {CATEGORIES.map((cat, i) => (
               <Link
                 key={cat.key}
                 href={`/search?category=${cat.key}`}
-                className="group relative rounded-2xl overflow-hidden hover:shadow-lg transition-all duration-300 hover:scale-[1.02]"
-                style={{ animation: `fadeInUp 0.6s ease-out ${0.1 + i * 0.1}s both` }}
+                className="group relative rounded-2xl overflow-hidden hover:shadow-xl transition-all duration-500"
+                style={{ animation: `fadeInUp 0.6s ease-out ${0.1 + i * 0.15}s both` }}
               >
-                <div className="relative aspect-[4/3]">
+                <div className="relative aspect-[16/9]">
                   <Image
                     src={cat.image}
                     alt={cat.label}
                     fill
-                    className="object-cover transition-transform duration-500 group-hover:scale-110"
-                    sizes="50vw"
+                    className="object-cover transition-transform duration-700 group-hover:scale-105"
+                    sizes="100vw"
                   />
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
                 </div>
               </Link>
             ))}
