@@ -52,7 +52,21 @@ export function ProductActions({ product, hasPurchased, isWishlisted, userId }: 
   }
 
   return (
-    <div className="fixed bottom-16 left-0 right-0 bg-white/95 dark:bg-neutral-950/95 backdrop-blur-xl border-t border-neutral-100 dark:border-neutral-800 px-4 py-3 z-40">
+    <div
+      dir="ltr"
+      style={{
+        position: 'fixed',
+        bottom: '64px',
+        left: 0,
+        right: 0,
+        zIndex: 40,
+        backgroundColor: 'rgba(255,255,255,0.95)',
+        borderTop: '1px solid #f5f5f5',
+        backdropFilter: 'blur(20px)',
+        padding: '12px 16px',
+      }}
+      className="dark:bg-neutral-950/95 dark:border-neutral-800"
+    >
       <div className="max-w-2xl mx-auto flex gap-3">
         {/* Wishlist */}
         <button
