@@ -117,7 +117,7 @@ export default async function ProductPage({ params }: Props) {
       <TopBar />
 
       {/* محتوى الصفحة مع padding أسفل كافٍ */}
-      <div className="max-w-2xl mx-auto" style={{ paddingBottom: '140px' }}>
+      <div className="max-w-2xl mx-auto" style={{ paddingBottom: 'calc(64px + 80px + env(safe-area-inset-bottom, 20px))' }}>
 
         <ProductGallery
           images={product.preview_images ?? []}
@@ -430,15 +430,16 @@ export default async function ProductPage({ params }: Props) {
       <div
         style={{
           position: 'fixed',
-          bottom: '64px',
+          bottom: 'calc(64px + env(safe-area-inset-bottom, 0px))',
           left: 0,
           right: 0,
-          zIndex: 40,
+          zIndex: 45,
           backgroundColor: 'rgba(255,255,255,0.97)',
           borderTop: '1px solid #f0f0f0',
           backdropFilter: 'blur(20px)',
           WebkitBackdropFilter: 'blur(20px)',
           padding: '10px 16px',
+          boxSizing: 'border-box',
         }}
         className="dark:bg-neutral-950/97 dark:border-neutral-800"
       >
