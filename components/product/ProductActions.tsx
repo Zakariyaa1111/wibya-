@@ -52,7 +52,7 @@ export function ProductActions({ product, hasPurchased, isWishlisted, userId }: 
   }
 
   return (
-    <div className="fixed bottom-16 inset-x-0 bg-white/95 dark:bg-neutral-950/95 backdrop-blur-xl border-t border-neutral-100 dark:border-neutral-800 px-4 py-3 z-40">
+    <div className="fixed bottom-16 left-0 right-0 bg-white/95 dark:bg-neutral-950/95 backdrop-blur-xl border-t border-neutral-100 dark:border-neutral-800 px-4 py-3 z-40" dir="rtl">
       <div className="max-w-2xl mx-auto flex gap-3">
         {/* Wishlist */}
         <button
@@ -97,10 +97,10 @@ export function ProductActions({ product, hasPurchased, isWishlisted, userId }: 
         ) : (
           <button
             onClick={handleBuy}
-            className="flex-1 flex items-center justify-center gap-2 py-3.5 bg-neutral-900 dark:bg-white text-white dark:text-neutral-900 font-bold rounded-2xl text-sm hover:opacity-90 transition-opacity"
+            className="flex-1 min-w-0 flex items-center justify-center gap-2 py-3.5 bg-neutral-900 dark:bg-white text-white dark:text-neutral-900 font-bold rounded-2xl text-sm hover:opacity-90 transition-opacity"
           >
-            <ShoppingBag size={18} aria-hidden="true" />
-            شراء الآن — ${product.price}
+            <ShoppingBag size={18} className="shrink-0" aria-hidden="true" />
+            <span className="truncate">شراء — ${product.price}$</span>
           </button>
         )}
       </div>
