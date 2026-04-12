@@ -1,7 +1,6 @@
 'use client'
 import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
-import { useRouter } from '@/lib/i18n/navigation'
 import { TopBar } from '@/components/layout/TopBar'
 import { BottomNav } from '@/components/layout/BottomNav'
 import Image from 'next/image'
@@ -20,13 +19,12 @@ export default function PurchasesPage() {
   const [rating, setRating] = useState(0)
   const [comment, setComment] = useState('')
   const [submittingReview, setSubmittingReview] = useState(false)
-  const router = useRouter()
 
   useEffect(() => {
     async function load() {
       const supabase = createClient()
       const { data: { user } } = await supabase.auth.getUser()
-      if (!user) { router.push('/auth/login'); return }
+      if (!user) { window.location.href = '/ar/auth/login'; return }
 
       const { data } = await supabase
         .from('purchases')
