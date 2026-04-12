@@ -2,7 +2,6 @@
 import { Suspense, useState, useEffect } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
-import { useRouter } from '@/lib/i18n/navigation'
 // TODO: استبدال PayPal ببوابة AmanPay
 import Image from 'next/image'
 import {
@@ -13,7 +12,6 @@ import toast from 'react-hot-toast'
 
 function CheckoutForm() {
   const searchParams = useSearchParams()
-  const router = useRouter()
   const productId = searchParams.get('product')
 
   const [product, setProduct] = useState<any>(null)
@@ -27,10 +25,10 @@ function CheckoutForm() {
   const [purchaseId, setPurchaseId] = useState<string>('')
 
   useEffect(() => {
-    if (!productId) { router.push('/'); return }
+    if (!productId) { window.location.href = '/ar'; return }
     const supabase = createClient()
     supabase.auth.getUser().then(async ({ data: { user } }) => {
-      if (!user) { router.push('/auth/login'); return }
+      if (!user) { window.location.href = '/ar/auth/login'; return }
       setUserId(user.id)
 
       const { data: p } = await supabase
@@ -40,7 +38,7 @@ function CheckoutForm() {
         .eq('status', 'active')
         .single()
 
-      if (!p) { toast.error('المنتج غير موجود'); router.push('/'); return }
+      if (!p) { toast.error('المنتج غير موجود'); window.location.href = '/ar'; return }
 
       // هل اشترى من قبل؟
       const { data: existing } = await supabase
@@ -53,7 +51,7 @@ function CheckoutForm() {
 
       if (existing) {
         toast('اشتريت هذا المنتج مسبقاً', { icon: 'ℹ️' })
-        router.push('/purchases')
+        window.location.href = '/ar/purchases'
         return
       }
 
@@ -187,13 +185,13 @@ function CheckoutForm() {
       </p>
       <div className="flex gap-3 w-full max-w-xs">
         <button
-          onClick={() => router.push('/purchases')}
+          onClick={() => window.location.href = '/ar/purchases'}
           className="flex-1 py-3.5 bg-neutral-900 dark:bg-white text-white dark:text-neutral-900 font-bold rounded-2xl text-sm"
         >
           تحميل المنتج
         </button>
         <button
-          onClick={() => router.push('/')}
+          onClick={() => window.location.href = '/ar'}
           className="flex-1 py-3.5 border border-neutral-200 dark:border-neutral-700 text-neutral-700 dark:text-neutral-300 rounded-2xl text-sm"
         >
           الرئيسية
@@ -207,7 +205,7 @@ function CheckoutForm() {
       {/* Header */}
       <header className="sticky top-0 z-40 bg-white/90 dark:bg-neutral-950/90 backdrop-blur-xl border-b border-neutral-100 dark:border-neutral-800 flex items-center gap-3 px-4 h-14">
         <button
-          onClick={() => router.back()}
+          onClick={() => window.history.back()}
           className="p-2 rounded-xl hover:bg-neutral-100 dark:hover:bg-neutral-800"
           aria-label="رجوع"
         >
