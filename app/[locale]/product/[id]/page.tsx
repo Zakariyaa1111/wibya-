@@ -431,8 +431,7 @@ export default async function ProductPage({ params }: Props) {
         style={{
           position: 'fixed',
           bottom: 'calc(64px + env(safe-area-inset-bottom, 0px))',
-          left: 0,
-          right: 0,
+          insetInline: 0,
           zIndex: 45,
           backgroundColor: 'rgba(255,255,255,0.97)',
           borderTop: '1px solid #f0f0f0',
