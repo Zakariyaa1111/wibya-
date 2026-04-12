@@ -33,7 +33,7 @@ function CheckoutForm() {
 
       const { data: p } = await supabase
         .from('digital_products')
-        .select('*, profiles(id, full_name, store_name, store_image, is_verified, paypal_email)')
+        .select('*, profiles!developer_id(id, full_name, store_name, store_image, verified)')
         .eq('id', productId)
         .eq('status', 'active')
         .single()
