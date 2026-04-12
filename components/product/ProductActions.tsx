@@ -52,8 +52,8 @@ export function ProductActions({ product, hasPurchased, isWishlisted, userId }: 
   }
 
   return (
-    <div className="fixed bottom-0 left-0 right-0 bg-white/95 dark:bg-neutral-950/95 backdrop-blur-xl border-t border-neutral-100 dark:border-neutral-800 px-4 pt-3 pb-20 z-40">
-      <div className="max-w-2xl mx-auto flex gap-3" dir="ltr">
+    <div className="fixed bottom-16 left-0 right-0 bg-white/95 dark:bg-neutral-950/95 backdrop-blur-xl border-t border-neutral-100 dark:border-neutral-800 px-4 py-3 z-40">
+      <div className="max-w-2xl mx-auto flex gap-3">
         {/* Wishlist */}
         <button
           onClick={handleWishlist}
