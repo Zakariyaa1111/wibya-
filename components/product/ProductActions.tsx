@@ -1,6 +1,5 @@
 'use client'
 import { useState } from 'react'
-import { useRouter } from '@/lib/i18n/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { ShoppingBag, Heart, Eye, Download, Check } from 'lucide-react'
 import toast from 'react-hot-toast'
@@ -20,7 +19,6 @@ interface Props {
 }
 
 export function ProductActions({ product, hasPurchased, isWishlisted, userId }: Props) {
-  const router = useRouter()
   const [wishlisted, setWishlisted] = useState(isWishlisted)
   const [loadingWishlist, setLoadingWishlist] = useState(false)
 
@@ -28,10 +26,8 @@ export function ProductActions({ product, hasPurchased, isWishlisted, userId }: 
     if (!userId) { window.location.href = '/ar/auth/login'; return }
     setLoadingWishlist(true)
     const supabase = createClient()
-
     if (wishlisted) {
-      await supabase.from('wishlist').delete()
-        .eq('user_id', userId).eq('product_id', product.id)
+      await supabase.from('wishlist').delete().eq('user_id', userId).eq('product_id', product.id)
       setWishlisted(false)
       toast.success('تم الإزالة من المحفوظات')
     } else {
@@ -48,89 +44,135 @@ export function ProductActions({ product, hasPurchased, isWishlisted, userId }: 
   }
 
   function handleDownload() {
-    router.push(`/purchases`)
+    window.location.href = '/ar/purchases'
   }
 
   return (
-    <div
-      style={{
-        position: 'fixed',
-        bottom: '64px',
-        left: '0px',
-        right: '0px',
-        width: '100%',
-        zIndex: 40,
-        padding: '12px 16px',
-        direction: 'ltr',
-      }}
-      className="bg-white/95 dark:bg-neutral-950/95 backdrop-blur-xl border-t border-neutral-100 dark:border-neutral-800"
-    >
-      <div style={{maxWidth: '42rem', margin: '0 auto', display: 'flex', gap: '12px'}}>
-        {/* Wishlist */}
-        <button
-          onClick={handleWishlist}
-          disabled={loadingWishlist}
-          aria-label={wishlisted ? 'إزالة من المحفوظات' : 'حفظ للاحقاً'}
-          className={`w-12 h-12 rounded-2xl border flex items-center justify-center transition-colors shrink-0 ${
-            wishlisted
-              ? 'bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800'
-              : 'border-neutral-200 dark:border-neutral-700 hover:bg-neutral-50 dark:hover:bg-neutral-800'
-          }`}
-        >
-          <Heart
-            size={20}
-            className={wishlisted ? 'text-red-500 fill-red-500' : 'text-neutral-500'}
-            aria-hidden="true"
-          />
-        </button>
+    <>
+      <div className="h-28" />
+      <div
+        className="bg-white/95 dark:bg-neutral-950/95 backdrop-blur-xl border-t border-neutral-100 dark:border-neutral-800"
+        style={{
+          position: 'fixed',
+          top: 'auto',
+          bottom: '64px',
+          left: '0',
+          right: '0',
+          zIndex: 40,
+          padding: '10px 16px',
+          direction: 'ltr',
+          WebkitTransform: 'translate3d(0,0,0)',
+          transform: 'translate3d(0,0,0)',
+        }}
+      >
+        <div style={{ display: 'flex', flexDirection: 'row', gap: '10px', alignItems: 'center' }}>
 
-        {/* Demo */}
-        {product.demoUrl && (
-          <a
-            href={product.demoUrl}
-            target="_blank"
-            rel="noreferrer"
-            aria-label="مشاهدة Demo"
-            className="w-12 h-12 rounded-2xl border border-neutral-200 dark:border-neutral-700 flex items-center justify-center hover:bg-neutral-50 dark:hover:bg-neutral-800 transition-colors shrink-0"
-          >
-            <Eye size={20} className="text-neutral-500" aria-hidden="true" />
-          </a>
-        )}
+          {/* زر الشراء */}
+          {hasPurchased ? (
+            <button
+              onClick={handleDownload}
+              style={{
+                flex: 1,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '8px',
+                padding: '14px 12px',
+                backgroundColor: '#16a34a',
+                color: 'white',
+                fontWeight: 'bold',
+                borderRadius: '16px',
+                fontSize: '14px',
+                border: 'none',
+                cursor: 'pointer',
+                minWidth: 0,
+              }}
+            >
+              <Download size={18} />
+              تحميل المنتج
+            </button>
+          ) : (
+            <button
+              onClick={handleBuy}
+              style={{
+                flex: 1,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '8px',
+                padding: '14px 12px',
+                backgroundColor: '#171717',
+                color: 'white',
+                fontWeight: 'bold',
+                borderRadius: '16px',
+                fontSize: '14px',
+                border: 'none',
+                cursor: 'pointer',
+                minWidth: 0,
+              }}
+            >
+              <ShoppingBag size={18} style={{ flexShrink: 0 }} />
+              <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                شراء — ${product.price}
+              </span>
+            </button>
+          )}
 
-        {/* Main CTA */}
-        {hasPurchased ? (
+          {/* Demo */}
+          {product.demoUrl && (
+            <a
+              href={product.demoUrl}
+              target="_blank"
+              rel="noreferrer"
+              style={{
+                width: '48px',
+                height: '48px',
+                borderRadius: '16px',
+                border: '1px solid #e5e5e5',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                flexShrink: 0,
+                textDecoration: 'none',
+              }}
+            >
+              <Eye size={20} color="#737373" />
+            </a>
+          )}
+
+          {/* Wishlist */}
           <button
-            onClick={handleDownload}
-            className="flex-1 flex items-center justify-center gap-2 py-3.5 bg-green-600 text-white font-bold rounded-2xl text-sm hover:bg-green-700 transition-colors"
+            onClick={handleWishlist}
+            disabled={loadingWishlist}
+            style={{
+              width: '48px',
+              height: '48px',
+              borderRadius: '16px',
+              border: wishlisted ? '1px solid #fecaca' : '1px solid #e5e5e5',
+              backgroundColor: wishlisted ? '#fff1f2' : 'transparent',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              flexShrink: 0,
+              cursor: 'pointer',
+            }}
           >
-            <Download size={18} aria-hidden="true" />
-            تحميل المنتج
+            <Heart size={20} color={wishlisted ? '#ef4444' : '#737373'} fill={wishlisted ? '#ef4444' : 'none'} />
           </button>
-        ) : (
-          <button
-            onClick={handleBuy}
-            className="flex-1 min-w-0 flex items-center justify-center gap-2 py-3.5 bg-neutral-900 dark:bg-white text-white dark:text-neutral-900 font-bold rounded-2xl text-sm hover:opacity-90 transition-opacity"
-          >
-            <ShoppingBag size={18} className="shrink-0" aria-hidden="true" />
-            <span className="truncate">شراء — ${product.price}$</span>
-          </button>
+
+        </div>
+
+        {!hasPurchased && (
+          <div style={{ display: 'flex', justifyContent: 'center', gap: '16px', marginTop: '6px' }}>
+            {['دفعة واحدة', 'وصول دائم', 'بدون اشتراك'].map(item => (
+              <span key={item} style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '10px', color: '#a3a3a3' }}>
+                <Check size={10} color="#22c55e" />
+                {item}
+              </span>
+            ))}
+          </div>
         )}
       </div>
-
-      {!hasPurchased && (
-        <div className="max-w-2xl mx-auto mt-2 flex items-center justify-center gap-4">
-          {[
-            'دفعة واحدة',
-            'وصول دائم',
-            'بدون اشتراك',
-          ].map(item => (
-            <span key={item} className="flex items-center gap-1 text-[10px] text-neutral-400">
-              <Check size={10} className="text-green-500" aria-hidden="true" />
-              {item}
-            </span>
-          ))}
-        </div>
-      )}
-    </div>
+    </>
   )
 }
