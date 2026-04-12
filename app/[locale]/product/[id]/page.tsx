@@ -428,19 +428,21 @@ export default async function ProductPage({ params }: Props) {
         </div>
       </div>
 
-      <ProductActions
-        product={{
-          id: product.id,
-          title,
-          price: product.price,
-          originalPrice: product.original_price,
-          developerId: product.developer_id,
-          demoUrl: product.demo_url,
-        }}
-        hasPurchased={hasPurchased}
-        isWishlisted={isWishlisted}
-        userId={user?.id}
-      />
+      <div dir="ltr">
+        <ProductActions
+          product={{
+            id: product.id,
+            title,
+            price: product.price,
+            originalPrice: product.original_price,
+            developerId: product.developer_id,
+            demoUrl: product.demo_url,
+          }}
+          hasPurchased={hasPurchased}
+          isWishlisted={isWishlisted}
+          userId={user?.id}
+        />
+      </div>
 
       <BottomNav />
     </div>
