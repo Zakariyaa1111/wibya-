@@ -86,11 +86,11 @@ export default function ProfilePage() {
       <main className="pb-24 max-w-lg mx-auto">
 
         {/* Hero Header */}
-        <div className="relative bg-neutral-900 px-4 pt-10 pb-16 overflow-hidden">
-          {/* خلفية ديكورية */}
-          <div className="absolute inset-0 opacity-[0.06]" aria-hidden="true">
-            <div className="absolute top-0 right-0 w-72 h-72 bg-white rounded-full translate-x-36 -translate-y-36" />
-            <div className="absolute bottom-0 left-0 w-48 h-48 bg-white rounded-full -translate-x-24 translate-y-24" />
+        <div className="relative px-4 pt-10 pb-16 overflow-hidden">
+          {/* صورة الخلفية */}
+          <div className="absolute inset-0" aria-hidden="true">
+            <Image src="/hero-bg.png" alt="" fill className="object-cover" priority />
+            <div className="absolute inset-0 bg-neutral-900/75" />
           </div>
 
           <div className="relative text-center">
