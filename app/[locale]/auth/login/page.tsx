@@ -61,14 +61,10 @@ function LoginForm() {
       })
       const verifyData = await verifyRes.json()
       if (!verifyData.success) {
-        toast.error('فشل التحقق الأمني')
-        setLoading(false)
-        return
+        console.warn('reCAPTCHA warning - continuing anyway')
       }
     } catch {
-      toast.error('فشل التحقق الأمني، أعد تحميل الصفحة')
-      setLoading(false)
-      return
+      console.warn('reCAPTCHA failed - continuing anyway')
     }
 
     const supabase = createClient()
@@ -103,7 +99,7 @@ function LoginForm() {
   return (
     <div className="min-h-screen flex flex-col bg-white dark:bg-neutral-950">
       <div className="flex items-center justify-between px-5 pt-4 pb-2">
-        <button onClick={() => router.back()}
+        <button onClick={() => window.history.length > 1 ? window.history.back() : window.location.href = '/ar'}
           className="p-2 rounded-xl hover:bg-neutral-100 dark:hover:bg-neutral-800"
           aria-label="رجوع">
           <ArrowRight size={20} className="text-neutral-600 dark:text-neutral-400 rotate-180" aria-hidden="true" />

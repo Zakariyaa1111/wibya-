@@ -25,7 +25,7 @@ export function ProductActions({ product, hasPurchased, isWishlisted, userId }: 
   const [loadingWishlist, setLoadingWishlist] = useState(false)
 
   async function handleWishlist() {
-    if (!userId) { router.push('/auth/login'); return }
+    if (!userId) { window.location.href = '/ar/auth/login'; return }
     setLoadingWishlist(true)
     const supabase = createClient()
 
@@ -43,8 +43,8 @@ export function ProductActions({ product, hasPurchased, isWishlisted, userId }: 
   }
 
   function handleBuy() {
-    if (!userId) { router.push('/auth/login'); return }
-    router.push(`/checkout?product=${product.id}`)
+    if (!userId) { window.location.href = '/ar/auth/login'; return }
+    window.location.href = `/ar/checkout?product=${product.id}`
   }
 
   function handleDownload() {
