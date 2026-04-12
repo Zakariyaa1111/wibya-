@@ -5,7 +5,6 @@ import { Link } from '@/lib/i18n/navigation'
 import { ProductGallery } from '@/components/product/ProductGallery'
 import { TopBar } from '@/components/layout/TopBar'
 import { BottomNav } from '@/components/layout/BottomNav'
-import { WishlistButton } from '@/components/product/WishlistButton'
 import {
   Shield, Star, Download, Clock, Code2,
   CheckCircle, Eye, Tag,
