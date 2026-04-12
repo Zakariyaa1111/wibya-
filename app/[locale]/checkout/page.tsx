@@ -3,7 +3,7 @@ import { Suspense, useState, useEffect } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter } from '@/lib/i18n/navigation'
-import { PayPalScriptProvider, PayPalButtons } from '@paypal/react-paypal-js'
+// TODO: استبدال PayPal ببوابة AmanPay
 import Image from 'next/image'
 import {
   ArrowRight, Shield, Check, Lock,
@@ -116,7 +116,7 @@ function CheckoutForm() {
           platform_fee: platformFee,
           developer_amount: developerAmount,
           currency: 'USD',
-          payment_method: 'paypal',
+          payment_method: 'card',
           payment_id: data.orderID,
           status: 'escrow',
           escrow_until: new Date(Date.now() + 48 * 60 * 60 * 1000).toISOString(),
@@ -327,49 +327,20 @@ function CheckoutForm() {
           </p>
         </div>
 
-        {/* PayPal Button */}
+        {/* زر الدفع - سيتم استبداله ببوابة AmanPay */}
         <div className="bg-white dark:bg-neutral-900 rounded-2xl border border-neutral-100 dark:border-neutral-800 p-4">
           <p className="text-sm font-semibold text-neutral-900 dark:text-white mb-4 flex items-center gap-2">
             <Lock size={14} className="text-green-500" aria-hidden="true" />
-            الدفع الآمن بـ PayPal
+            الدفع الآمن
           </p>
 
-          <PayPalScriptProvider options={{
-            clientId: process.env.NEXT_PUBLIC_PAYPAL_CLIENT_ID!,
-            currency: 'USD',
-          }}>
-            <PayPalButtons
-              style={{
-                layout: 'vertical',
-                color: 'black',
-                shape: 'rect',
-                label: 'pay',
-                height: 48,
-              }}
-              createOrder={async (data, actions) => {
-                return actions.order.create({
-                  intent: 'CAPTURE',
-                  purchase_units: [{
-                    amount: {
-                      currency_code: 'USD',
-                      value: finalPrice.toFixed(2),
-                    },
-                    description: product?.title,
-                  }],
-                })
-              }}
-              onApprove={async (data, actions) => {
-                await actions.order?.capture()
-                await onApprove(data)
-              }}
-              onError={() => {
-                toast.error('خطأ في PayPal — حاول مجدداً')
-              }}
-              onCancel={() => {
-                toast('تم إلغاء الدفع', { icon: 'ℹ️' })
-              }}
-            />
-          </PayPalScriptProvider>
+          {/* TODO: تكامل AmanPay هنا */}
+          <button
+            disabled
+            className="w-full py-4 bg-neutral-300 dark:bg-neutral-700 text-neutral-500 dark:text-neutral-400 font-bold rounded-2xl text-sm cursor-not-allowed"
+          >
+            الدفع قريباً — جاري تفعيل بوابة الدفع
+          </button>
 
           <p className="text-[10px] text-neutral-400 text-center mt-3">
             بالضغط على "Pay Now" توافق على شروط الاستخدام وسياسة عدم الاسترداد

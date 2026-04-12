@@ -209,7 +209,7 @@ export default function AdminPage() {
       await supabase.from('notifications').insert({
         user_id: withdrawal.developer_id,
         title: '💸 تمت معالجة طلب السحب',
-        body: `سيصل مبلغ $${withdrawal.amount} لحساب PayPal خلال 1-3 أيام`,
+        body: `سيصل مبلغ $${withdrawal.amount} عبر تحويل بنكي خلال 1-3 أيام`,
         type: 'product', is_read: false,
       })
       toast.success('تمت الموافقة على السحب ✅')
@@ -623,7 +623,7 @@ export default function AdminPage() {
                 </div>
                 <div className="bg-amber-50 dark:bg-amber-900/20 rounded-xl p-3 mb-3">
                   <p className="text-xs text-amber-700 dark:text-amber-300">
-                    ⚠️ تأكد من تحويل المبلغ لـ PayPal: <strong>{w.paypal_email}</strong> قبل الموافقة
+                    ⚠️ تأكد من تحويل المبلغ للبريد: <strong>{w.paypal_email}</strong> قبل الموافقة
                   </p>
                 </div>
                 <div className="flex gap-2">

@@ -8,7 +8,7 @@ import { TopBar } from '@/components/layout/TopBar'
 import { BottomNav } from '@/components/layout/BottomNav'
 import {
   Shield, Star, Download, Clock, Code2,
-  CheckCircle, Eye, FileText, Tag, Users,
+  CheckCircle, Eye, Tag,
   BadgeCheck, AlertCircle, Package
 } from 'lucide-react'
 import type { Metadata } from 'next'
@@ -18,8 +18,7 @@ interface Props {
 }
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
-  const resolvedParams = await params
-  const id = resolvedParams.id
+  const { id } = await params
   const supabase = await createClient()
   const { data: product } = await supabase
     .from('digital_products')
@@ -41,37 +40,49 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 }
 
 export default async function ProductPage({ params }: Props) {
-  const resolvedParams = await params
-  const id = resolvedParams.id
-  const locale = resolvedParams.locale || 'ar'
+  const { id, locale } = await params
   const supabase = await createClient()
 
   // جلب المنتج
-  const { data: product } = await supabase
+  const { data: product, error } = await supabase
     .from('digital_products')
-    .select(`
-      *,
-      profiles!developer_id (
-        id, full_name, store_name, store_image, bio,
-        website, github, twitter, verified,
-        followers_count, total_sales
-      ),
-      product_reviews (
-        id, rating, comment, created_at,
-        profiles (full_name, store_name)
-      )
-    `)
+    .select('*')
     .eq('id', id)
     .eq('status', 'active')
     .single()
 
-  if (!product) notFound()
+  if (error || !product) notFound()
 
-  // تحديث عداد المشاهدات
-  await supabase
+  // جلب المطور بشكل منفصل
+  const { data: developer } = await supabase
+    .from('profiles')
+    .select('id, full_name, store_name, store_image, bio, verified, total_sales')
+    .eq('id', product.developer_id)
+    .single()
+
+  // جلب التقييمات بشكل منفصل
+  const { data: reviewsData } = await supabase
+    .from('product_reviews')
+    .select('id, rating, comment, created_at, profiles(full_name, store_name)')
+    .eq('product_id', id)
+    .order('created_at', { ascending: false })
+    .limit(10)
+
+  // منتجات مشابهة
+  const { data: similarProducts } = await supabase
+    .from('digital_products')
+    .select('id, title, price, preview_images, average_rating, sales_count, quality_badge')
+    .eq('category', product.category)
+    .eq('status', 'active')
+    .neq('id', id)
+    .limit(4)
+
+  // تحديث عداد المشاهدات بشكل silent
+  supabase
     .from('digital_products')
     .update({ views_count: (product.views_count || 0) + 1 })
     .eq('id', id)
+    .then(() => {})
 
   // هل المستخدم اشترى هذا المنتج؟
   const { data: { user } } = await supabase.auth.getUser()
@@ -85,32 +96,21 @@ export default async function ProductPage({ params }: Props) {
         .eq('buyer_id', user.id)
         .eq('product_id', id)
         .in('status', ['completed', 'escrow'])
-        .single(),
+        .maybeSingle(),
       supabase.from('wishlist')
         .select('id')
         .eq('user_id', user.id)
         .eq('product_id', id)
-        .single(),
+        .maybeSingle(),
     ])
     hasPurchased = !!purchase
     isWishlisted = !!wish
   }
 
-  // منتجات مشابهة
-  const { data: similarProducts } = await supabase
-    .from('digital_products')
-    .select('id, title, price, preview_images, average_rating, sales_count, quality_badge')
-    .eq('category', product.category)
-    .eq('status', 'active')
-    .neq('id', id)
-    .limit(4)
-
-  const developer = product.profiles as any
-  const reviews = product.product_reviews as any[] ?? []
-  const isAr = locale === 'ar'
+  const reviews = reviewsData ?? []
+  const isAr = (locale || 'ar') === 'ar'
   const title = isAr ? product.title : (product.title_fr || product.title)
   const description = isAr ? product.description : (product.description_fr || product.description)
-
   const discount = product.original_price
     ? Math.round((1 - product.price / product.original_price) * 100)
     : null
@@ -118,7 +118,6 @@ export default async function ProductPage({ params }: Props) {
   return (
     <div className="min-h-screen bg-neutral-50 dark:bg-neutral-950">
       <TopBar />
-
       <div className="max-w-2xl mx-auto pb-36">
 
         {/* Gallery */}
@@ -132,7 +131,6 @@ export default async function ProductPage({ params }: Props) {
 
           {/* Header */}
           <div>
-            {/* Badges */}
             <div className="flex flex-wrap items-center gap-2 mb-2">
               <span className="text-xs bg-neutral-100 dark:bg-neutral-800 text-neutral-600 dark:text-neutral-400 px-2.5 py-1 rounded-full">
                 {product.category}
@@ -154,27 +152,28 @@ export default async function ProductPage({ params }: Props) {
               {title}
             </h1>
 
-            {/* Stats */}
             <div className="flex flex-wrap items-center gap-4 text-xs text-neutral-500 dark:text-neutral-400">
               {product.average_rating > 0 && (
                 <div className="flex items-center gap-1">
                   <Star size={13} className="text-amber-400 fill-amber-400" aria-hidden="true" />
                   <span className="font-medium text-neutral-700 dark:text-neutral-300">{product.average_rating.toFixed(1)}</span>
-                  <span>({product.ratings_count} تقييم)</span>
+                  <span>({product.ratings_count || 0} تقييم)</span>
                 </div>
               )}
               <div className="flex items-center gap-1">
                 <Download size={13} aria-hidden="true" />
-                <span>{product.sales_count} مبيعة</span>
+                <span>{product.sales_count || 0} مبيعة</span>
               </div>
               <div className="flex items-center gap-1">
                 <Eye size={13} aria-hidden="true" />
-                <span>{product.views_count} مشاهدة</span>
+                <span>{product.views_count || 0} مشاهدة</span>
               </div>
-              <div className="flex items-center gap-1">
-                <Clock size={13} aria-hidden="true" />
-                <span>v{product.version}</span>
-              </div>
+              {product.version && (
+                <div className="flex items-center gap-1">
+                  <Clock size={13} aria-hidden="true" />
+                  <span>v{product.version}</span>
+                </div>
+              )}
             </div>
           </div>
 
@@ -207,21 +206,17 @@ export default async function ProductPage({ params }: Props) {
               <div className="flex items-center justify-between mb-3">
                 <div className="flex items-center gap-2">
                   <Shield size={16} className={product.claude_score >= 70 ? 'text-green-600' : product.claude_score >= 50 ? 'text-amber-600' : 'text-red-500'} aria-hidden="true" />
-                  <span className="text-sm font-bold text-neutral-900 dark:text-white">
-                    تقرير جودة Wibya
-                  </span>
+                  <span className="text-sm font-bold text-neutral-900 dark:text-white">تقرير جودة Wibya</span>
                 </div>
-                <div className="flex items-center gap-2">
-                  <span className={`text-lg font-bold ${product.claude_score >= 70 ? 'text-green-600' : product.claude_score >= 50 ? 'text-amber-600' : 'text-red-500'}`}>
-                    {product.claude_score}/100
-                  </span>
-                </div>
+                <span className={`text-lg font-bold ${product.claude_score >= 70 ? 'text-green-600' : product.claude_score >= 50 ? 'text-amber-600' : 'text-red-500'}`}>
+                  {product.claude_score}/100
+                </span>
               </div>
-
-              <p className="text-sm text-neutral-600 dark:text-neutral-400 mb-3">
-                {(product.claude_report as any).summary}
-              </p>
-
+              {(product.claude_report as any).summary && (
+                <p className="text-sm text-neutral-600 dark:text-neutral-400 mb-3">
+                  {(product.claude_report as any).summary}
+                </p>
+              )}
               {(product.claude_report as any).strengths?.length > 0 && (
                 <div className="space-y-1.5">
                   {(product.claude_report as any).strengths.map((s: string, i: number) => (
@@ -232,7 +227,6 @@ export default async function ProductPage({ params }: Props) {
                   ))}
                 </div>
               )}
-
               <p className="text-[10px] text-neutral-400 dark:text-neutral-500 mt-3">
                 * هذا التقرير تحليل جودة تلقائي — ليس ضماناً أمنياً كاملاً
               </p>
@@ -268,11 +262,11 @@ export default async function ProductPage({ params }: Props) {
           <div className="bg-white dark:bg-neutral-900 rounded-2xl border border-neutral-100 dark:border-neutral-800 p-4">
             <h2 className="font-bold text-neutral-900 dark:text-white text-sm mb-3">تفاصيل المنتج</h2>
             <div className="space-y-2.5">
-              {[
-                { label: 'الإصدار', value: `v${product.version}`, icon: Tag },
+              {([
+                product.version ? { label: 'الإصدار', value: `v${product.version}`, icon: Tag } : null,
                 { label: 'الدعم', value: product.support_duration ? `${product.support_duration} يوم` : 'بدون دعم', icon: Clock },
-                { label: 'Tags', value: product.tags?.join(', ') || '—', icon: Tag },
-              ].map(({ label, value, icon: Icon }) => (
+                product.tags?.length > 0 ? { label: 'Tags', value: product.tags?.join(', '), icon: Tag } : null,
+              ] as any[]).filter(Boolean).map(({ label, value, icon: Icon }: any) => (
                 <div key={label} className="flex justify-between items-start text-sm">
                   <span className="text-neutral-500 dark:text-neutral-400 flex items-center gap-1.5">
                     <Icon size={13} aria-hidden="true" />
@@ -320,40 +314,36 @@ export default async function ProductPage({ params }: Props) {
           )}
 
           {/* Developer */}
-          <div className="bg-white dark:bg-neutral-900 rounded-2xl border border-neutral-100 dark:border-neutral-800 p-4">
-            <h2 className="font-bold text-neutral-900 dark:text-white text-sm mb-3">المطور</h2>
-            <Link href={`/developer/${developer?.id}`} className="flex items-center gap-3 group">
-              <div className="w-12 h-12 rounded-2xl bg-neutral-100 dark:bg-neutral-800 overflow-hidden shrink-0 flex items-center justify-center text-lg font-bold text-neutral-500">
-                {developer?.store_image
-                  ? <Image src={developer.store_image} alt={developer.store_name || ''} width={48} height={48} className="object-cover w-full h-full" />
-                  : (developer?.store_name || developer?.full_name || 'D').charAt(0)
-                }
-              </div>
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-1.5">
-                  <p className="font-semibold text-sm text-neutral-900 dark:text-white group-hover:underline">
-                    {developer?.store_name || developer?.full_name || 'مطور'}
-                  </p>
-                  {developer?.verified && (
-                    <BadgeCheck size={14} className="text-blue-500" aria-label="مطور موثق" />
-                  )}
+          {developer && (
+            <div className="bg-white dark:bg-neutral-900 rounded-2xl border border-neutral-100 dark:border-neutral-800 p-4">
+              <h2 className="font-bold text-neutral-900 dark:text-white text-sm mb-3">المطور</h2>
+              <Link href={`/developer/${developer.id}`} className="flex items-center gap-3 group">
+                <div className="w-12 h-12 rounded-2xl bg-neutral-100 dark:bg-neutral-800 overflow-hidden shrink-0 flex items-center justify-center text-lg font-bold text-neutral-500">
+                  {developer.store_image
+                    ? <Image src={developer.store_image} alt={developer.store_name || ''} width={48} height={48} className="object-cover w-full h-full" />
+                    : (developer.store_name || developer.full_name || 'D').charAt(0)
+                  }
                 </div>
-                {developer?.bio && (
-                  <p className="text-xs text-neutral-500 dark:text-neutral-400 line-clamp-1">{developer.bio}</p>
-                )}
-                <div className="flex items-center gap-3 mt-1">
-                  <span className="text-xs text-neutral-400">
-                    <Users size={11} className="inline me-1" aria-hidden="true" />
-                    {developer?.followers_count || 0} متابع
-                  </span>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-1.5">
+                    <p className="font-semibold text-sm text-neutral-900 dark:text-white group-hover:underline">
+                      {developer.store_name || developer.full_name || 'مطور'}
+                    </p>
+                    {developer.verified && (
+                      <BadgeCheck size={14} className="text-blue-500" aria-label="مطور موثق" />
+                    )}
+                  </div>
+                  {developer.bio && (
+                    <p className="text-xs text-neutral-500 dark:text-neutral-400 line-clamp-1">{developer.bio}</p>
+                  )}
                   <span className="text-xs text-neutral-400">
                     <Download size={11} className="inline me-1" aria-hidden="true" />
-                    {developer?.total_sales || 0} مبيعة
+                    {developer.total_sales || 0} مبيعة
                   </span>
                 </div>
-              </div>
-            </Link>
-          </div>
+              </Link>
+            </div>
+          )}
 
           {/* Reviews */}
           {reviews.length > 0 && (
@@ -362,12 +352,14 @@ export default async function ProductPage({ params }: Props) {
                 <h2 className="font-bold text-neutral-900 dark:text-white text-sm">
                   التقييمات ({reviews.length})
                 </h2>
-                <div className="flex items-center gap-1">
-                  <Star size={14} className="text-amber-400 fill-amber-400" aria-hidden="true" />
-                  <span className="font-bold text-sm text-neutral-900 dark:text-white">
-                    {product.average_rating.toFixed(1)}
-                  </span>
-                </div>
+                {product.average_rating > 0 && (
+                  <div className="flex items-center gap-1">
+                    <Star size={14} className="text-amber-400 fill-amber-400" aria-hidden="true" />
+                    <span className="font-bold text-sm text-neutral-900 dark:text-white">
+                      {product.average_rating.toFixed(1)}
+                    </span>
+                  </div>
+                )}
               </div>
               {reviews.slice(0, 5).map((review: any) => (
                 <div key={review.id} className="px-4 py-3 border-b border-neutral-50 dark:border-neutral-800 last:border-0">
@@ -432,10 +424,10 @@ export default async function ProductPage({ params }: Props) {
               </div>
             </div>
           )}
+
         </div>
       </div>
 
-      {/* Fixed Bottom Actions */}
       <ProductActions
         product={{
           id: product.id,

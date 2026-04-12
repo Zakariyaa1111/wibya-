@@ -1,185 +1,115 @@
 import { TopBar } from '@/components/layout/TopBar'
 import { BottomNav } from '@/components/layout/BottomNav'
-import { Scale, Shield, CreditCard, RotateCcw, AlertTriangle, Building2, Code2 } from 'lucide-react'
+import { Mail, MessageCircle, Clock, HelpCircle, Bug, CreditCard, Shield } from 'lucide-react'
 
-const SECTIONS = [
-  {
-    id: 1, icon: Shield,
-    title: '1. مقدمة',
-    content: 'تشكل هذه الشروط اتفاقًا قانونيًا ملزمًا بين المستخدم (مشتري أو مطور) ومنصة Wibya لسوق المنتجات الرقمية، وتخضع للقوانين المغربية، خصوصًا القانون 31.08 (حماية المستهلك) والقانون 53.05 (التبادل الإلكتروني) والقانون 09-08 (حماية البيانات).',
-  },
-  {
-    id: 2, icon: Code2,
-    title: '2. المنتجات الرقمية',
-    items: [
-      'Wibya سوق للمنتجات الرقمية فقط: قوالب، أدوات، دورات تعليمية، وUI Kits.',
-      'كل منتج يخضع لفحص جودة تلقائي بواسطة Claude AI قبل النشر.',
-      'المنتجات التي تحصل على 70/100 أو أكثر تحصل على شارة "جودة Wibya".',
-      'الشارة تقرير جودة — وليست ضماناً أمنياً كاملاً.',
-      'المطور مسؤول عن دقة الوصف ومطابقته للمنتج الفعلي.',
-    ],
-  },
-  {
-    id: 3, icon: Shield,
-    title: '3. التسجيل والحسابات',
-    items: [
-      'يلتزم المستخدم بتقديم معلومات صحيحة وكاملة.',
-      'الأدوار المتاحة: مشتري، مطور، أدمن.',
-      'المطورون يوافقون على شروط البائع عند التسجيل.',
-      'يحق للمنصة تعليق أي حساب مخالف للشروط.',
-    ],
-  },
-  {
-    id: 4, icon: CreditCard,
-    title: '4. المدفوعات ونظام Escrow',
-    items: [
-      'الدفع عبر PayPal فقط بالدولار الأمريكي.',
-      'عمولة المنصة 9% تشمل رسوم معالجة الدفع — لا ربح للمنصة.',
-      'المبلغ يُحتجز في Escrow لمدة 48 ساعة بعد الشراء.',
-      'بعد 48 ساعة بدون نزاع يُحول المبلغ تلقائياً للمطور.',
-      'في حالة نزاع: يُجمد المبلغ حتى الفصل فيه.',
-    ],
-  },
-  {
-    id: 5, icon: RotateCcw,
-    title: '5. سياسة الاسترداد',
-    items: [
-      'لا يوجد استرداد للمنتجات الرقمية بعد التحميل — وفق القانون 31.08.',
-      'المنتج مفحوص مسبقاً بـ Claude AI مما يقلل مخاطر الشراء.',
-      'يمكن فتح نزاع خلال 48 ساعة من الشراء إذا كان المنتج لا يعمل.',
-      'يفصل الأدمن في النزاع خلال 4 أيام عمل.',
-    ],
-  },
-  {
-    id: 6, icon: AlertTriangle,
-    title: '6. حقوق الملكية الفكرية',
-    items: [
-      'المطور يضمن أن المنتج من إنتاجه الأصلي أو لديه حق توزيعه.',
-      'المشتري يحصل على ترخيص استخدام شخصي أو تجاري حسب ما يحدده المطور.',
-      'يُمنع إعادة بيع أو توزيع المنتج بدون إذن صريح من المطور.',
-      'المنصة غير مسؤولة عن انتهاكات حقوق الملكية من طرف المطورين.',
-    ],
-  },
-  {
-    id: 7, icon: Shield,
-    title: '7. روابط التحميل',
-    items: [
-      'روابط التحميل آمنة ومؤقتة (صالحة 24 ساعة).',
-      'الحد الأقصى 3 تحميلات لكل مشتري لكل منتج.',
-      'الرابط مرتبط بحساب المشتري فقط — لا يمكن مشاركته.',
-      'في حالة فقدان الرابط: تواصل مع الدعم.',
-    ],
-  },
-  {
-    id: 8, icon: AlertTriangle,
-    title: '8. مكافحة الاحتيال',
-    items: [
-      'يُمنع رفع منتجات مسروقة أو منتهكة لحقوق الملكية.',
-      'يُمنع فتح نزاعات كاذبة أو بدون مبرر.',
-      'يُمنع التلاعب في نظام التقييمات.',
-      'المخالفات تؤدي لتعليق الحساب أو حذفه نهائياً.',
-    ],
-  },
-  {
-    id: 9, icon: Scale,
-    title: '9. حدود المسؤولية',
-    content: 'Wibya وسيط تقني بين المطور والمشتري. لا تتحمل المنصة مسؤولية جودة المنتجات أو أخطاء المطورين أو الخسائر غير المباشرة. تقرير Claude هو تحليل جودة تلقائي وليس ضماناً.',
-  },
-  {
-    id: 10, icon: Scale,
-    title: '10. القانون الواجب التطبيق',
-    items: [
-      'تخضع هذه الشروط للقانون المغربي.',
-      'قانون 31.08 — حماية المستهلك.',
-      'قانون 53.05 — العقود الإلكترونية.',
-      'قانون 09-08 — حماية البيانات الشخصية.',
-      'تختص المحاكم المغربية بالنظر في النزاعات.',
-    ],
-  },
+const TOPICS = [
+  { icon: HelpCircle, title: 'سؤال عام', desc: 'استفسار عن المنصة أو كيفية الاستخدام' },
+  { icon: Bug, title: 'مشكلة تقنية', desc: 'خطأ في الموقع أو مشكلة في التحميل' },
+  { icon: CreditCard, title: 'مشكلة في الدفع', desc: 'نزاع أو مشكلة في معاملة مالية' },
+  { icon: Shield, title: 'الإبلاغ عن منتج', desc: 'منتج مسروق أو يخالف الشروط' },
 ]
 
-export default function TermsPage() {
+export default function ContactPage() {
   return (
     <div className="min-h-screen bg-neutral-50 dark:bg-neutral-950">
       <TopBar />
-      <main className="pb-24 pt-6 px-4 max-w-2xl mx-auto">
+      <main className="pb-24 pt-6 px-4 max-w-2xl mx-auto space-y-4">
 
-        <div className="bg-white dark:bg-neutral-900 rounded-3xl border border-neutral-100 dark:border-neutral-800 p-6 mb-6 text-center">
+        {/* Header */}
+        <div className="bg-white dark:bg-neutral-900 rounded-3xl border border-neutral-100 dark:border-neutral-800 p-6 text-center">
           <div className="w-14 h-14 bg-neutral-100 dark:bg-neutral-800 rounded-2xl flex items-center justify-center mx-auto mb-4">
-            <Scale size={24} className="text-neutral-700 dark:text-neutral-300" />
+            <MessageCircle size={24} className="text-neutral-700 dark:text-neutral-300" />
           </div>
-          <h1 className="text-xl font-bold text-neutral-900 dark:text-white mb-2">شروط الاستخدام</h1>
-          <p className="text-sm text-neutral-500 dark:text-neutral-400 mb-3">
-            Wibya — سوق المنتجات الرقمية
-          </p>
-          <div className="flex items-center justify-center gap-2 text-xs text-neutral-400 flex-wrap">
-            <span>آخر تحديث: أبريل 2026</span>
-            <span>·</span>
-            <span>الإصدار 2.0</span>
-            <span>·</span>
-            <span>القانون المغربي</span>
-          </div>
-        </div>
-
-        <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-2xl p-4 mb-6 flex items-start gap-3">
-          <AlertTriangle size={16} className="text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" aria-hidden="true" />
-          <p className="text-sm text-amber-700 dark:text-amber-300 leading-relaxed">
-            باستخدامك لمنصة Wibya فإنك توافق على هذه الشروط. يُرجى قراءتها بعناية.
+          <h1 className="text-xl font-bold text-neutral-900 dark:text-white mb-2">تواصل معنا</h1>
+          <p className="text-sm text-neutral-500 dark:text-neutral-400">
+            نحن هنا لمساعدتك — سنرد خلال 24 ساعة
           </p>
         </div>
 
-        <div className="space-y-4">
-          {SECTIONS.map(({ id, icon: Icon, title, content, items }) => (
-            <section key={id}
-              className="bg-white dark:bg-neutral-900 rounded-2xl border border-neutral-100 dark:border-neutral-800 p-5"
-              aria-labelledby={`section-${id}`}>
-              <div className="flex items-center gap-3 mb-3">
-                <div className="w-8 h-8 bg-neutral-100 dark:bg-neutral-800 rounded-xl flex items-center justify-center shrink-0">
-                  <Icon size={15} className="text-neutral-600 dark:text-neutral-400" aria-hidden="true" />
+        {/* وقت الرد */}
+        <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-2xl p-4 flex items-center gap-3">
+          <Clock size={16} className="text-blue-600 dark:text-blue-400 shrink-0" aria-hidden="true" />
+          <p className="text-sm text-blue-700 dark:text-blue-300">
+            وقت الرد المعتاد: <strong>أقل من 24 ساعة</strong> أيام الأسبوع
+          </p>
+        </div>
+
+        {/* موضوعات التواصل */}
+        <div>
+          <h2 className="font-bold text-neutral-900 dark:text-white text-sm mb-3">بماذا يمكننا مساعدتك؟</h2>
+          <div className="grid grid-cols-2 gap-3">
+            {TOPICS.map(({ icon: Icon, title, desc }) => (
+              <div key={title} className="bg-white dark:bg-neutral-900 rounded-2xl border border-neutral-100 dark:border-neutral-800 p-4">
+                <div className="w-9 h-9 bg-neutral-100 dark:bg-neutral-800 rounded-xl flex items-center justify-center mb-3">
+                  <Icon size={16} className="text-neutral-600 dark:text-neutral-400" aria-hidden="true" />
                 </div>
-                <h2 id={`section-${id}`} className="font-bold text-neutral-900 dark:text-white text-sm">
-                  {title}
-                </h2>
+                <p className="font-bold text-xs text-neutral-900 dark:text-white mb-1">{title}</p>
+                <p className="text-[10px] text-neutral-400 leading-relaxed">{desc}</p>
               </div>
-              {content && <p className="text-sm text-neutral-600 dark:text-neutral-400 leading-relaxed mb-3">{content}</p>}
-              {items && (
-                <ul className="space-y-2" role="list">
-                  {items.map((item, i) => (
-                    <li key={i} className="flex items-start gap-2 text-sm text-neutral-600 dark:text-neutral-400">
-                      <span className="w-1.5 h-1.5 rounded-full bg-neutral-400 shrink-0 mt-2" aria-hidden="true" />
-                      <span className="leading-relaxed">{item}</span>
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </section>
-          ))}
+            ))}
+          </div>
         </div>
 
-        <div className="bg-white dark:bg-neutral-900 rounded-2xl border border-neutral-100 dark:border-neutral-800 p-5 mt-4">
-          <div className="flex items-center gap-3 mb-3">
-            <div className="w-8 h-8 bg-neutral-100 dark:bg-neutral-800 rounded-xl flex items-center justify-center">
-              <Building2 size={15} className="text-neutral-600 dark:text-neutral-400" aria-hidden="true" />
+        {/* طرق التواصل */}
+        <div className="space-y-3">
+          <h2 className="font-bold text-neutral-900 dark:text-white text-sm">طرق التواصل</h2>
+
+          {/* البريد الإلكتروني */}
+          <a
+            href="mailto:contact@wibya.com"
+            className="flex items-center gap-4 bg-white dark:bg-neutral-900 rounded-2xl border border-neutral-100 dark:border-neutral-800 p-4 hover:border-neutral-300 dark:hover:border-neutral-600 transition-colors group"
+          >
+            <div className="w-11 h-11 bg-neutral-100 dark:bg-neutral-800 rounded-xl flex items-center justify-center shrink-0 group-hover:bg-neutral-200 dark:group-hover:bg-neutral-700 transition-colors">
+              <Mail size={18} className="text-neutral-600 dark:text-neutral-400" aria-hidden="true" />
             </div>
-            <h2 className="font-bold text-neutral-900 dark:text-white text-sm">معلومات الشركة</h2>
-          </div>
+            <div>
+              <p className="font-bold text-sm text-neutral-900 dark:text-white">البريد الإلكتروني</p>
+              <p className="text-xs text-blue-600 dark:text-blue-400 mt-0.5">contact@wibya.com</p>
+              <p className="text-[10px] text-neutral-400 mt-0.5">للاستفسارات العامة والدعم</p>
+            </div>
+          </a>
+
+          {/* واتساب */}
+          <a
+            href="https://wa.me/212600000000"
+            target="_blank"
+            rel="noreferrer"
+            className="flex items-center gap-4 bg-white dark:bg-neutral-900 rounded-2xl border border-neutral-100 dark:border-neutral-800 p-4 hover:border-green-300 dark:hover:border-green-700 transition-colors group"
+          >
+            <div className="w-11 h-11 bg-green-50 dark:bg-green-900/20 rounded-xl flex items-center justify-center shrink-0 group-hover:bg-green-100 dark:group-hover:bg-green-900/40 transition-colors">
+              <MessageCircle size={18} className="text-green-600 dark:text-green-400" aria-hidden="true" />
+            </div>
+            <div>
+              <p className="font-bold text-sm text-neutral-900 dark:text-white">واتساب</p>
+              <p className="text-xs text-green-600 dark:text-green-400 mt-0.5">تواصل سريع ومباشر</p>
+              <p className="text-[10px] text-neutral-400 mt-0.5">للمشاكل العاجلة والدعم الفوري</p>
+            </div>
+          </a>
+        </div>
+
+        {/* معلومات الشركة */}
+        <div className="bg-white dark:bg-neutral-900 rounded-2xl border border-neutral-100 dark:border-neutral-800 p-5">
+          <h2 className="font-bold text-neutral-900 dark:text-white text-sm mb-3">معلومات الشركة</h2>
           <div className="space-y-2 text-sm text-neutral-600 dark:text-neutral-400">
-            <p><span className="font-medium text-neutral-900 dark:text-white">المنصة:</span> Wibya — سوق المنتجات الرقمية</p>
-            <p>
-              <span className="font-medium text-neutral-900 dark:text-white">البريد:</span>{' '}
-              <a href="mailto:wibya2026@gmail.com" className="text-blue-600 dark:text-blue-400 underline">
-                wibya2026@gmail.com
-              </a>
-            </p>
-            <p className="text-xs text-neutral-400 bg-neutral-50 dark:bg-neutral-800 rounded-xl p-3 mt-2">
-              ⚠️ سيتم إضافة ICE/RC بعد التسجيل الرسمي.
-            </p>
+            <div className="flex justify-between">
+              <span className="text-neutral-500">المنصة</span>
+              <span className="font-medium text-neutral-900 dark:text-white">Wibya</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-neutral-500">البلد</span>
+              <span className="font-medium text-neutral-900 dark:text-white">🇲🇦 المغرب</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-neutral-500">البريد</span>
+              <a href="mailto:contact@wibya.com" className="text-blue-600 dark:text-blue-400">contact@wibya.com</a>
+            </div>
           </div>
         </div>
 
-        <p className="text-center text-xs text-neutral-400 dark:text-neutral-600 mt-6">
+        <p className="text-center text-xs text-neutral-400 dark:text-neutral-600">
           Wibya © 2026 — جميع الحقوق محفوظة
         </p>
+
       </main>
       <BottomNav />
     </div>

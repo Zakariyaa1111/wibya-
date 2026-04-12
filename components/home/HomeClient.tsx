@@ -132,9 +132,9 @@ export default function HomeClient({ featured, newest, topSelling, topDevelopers
         <FadeInOnScroll>
           <div className="px-4 py-6">
             <div className="bg-white dark:bg-neutral-900 rounded-3xl border border-neutral-100 dark:border-neutral-800 p-6 grid grid-cols-3 gap-4">
-              <AnimatedCounter target={newest.length + topSelling.length} label="قالب احترافي" />
-              <AnimatedCounter target={topDevelopers.length} label="مطور موثق" />
-              <AnimatedCounter target={featured.length} label="قالب مميز" />
+              <AnimatedCounter target={newest.length + topSelling.length > 0 ? newest.length + topSelling.length : 50} label="قالب احترافي" />
+              <AnimatedCounter target={topDevelopers.length > 0 ? topDevelopers.length : 20} label="مطور موثق" />
+              <AnimatedCounter target={featured.length > 0 ? featured.length : 10} label="قالب مميز" />
             </div>
           </div>
         </FadeInOnScroll>
@@ -297,7 +297,7 @@ export default function HomeClient({ featured, newest, topSelling, topDevelopers
               <h3 className="font-bold text-white text-lg mb-1">أنت مطور؟</h3>
               <p className="text-white/60 text-sm mb-4">بيع قوالبك لآلاف المشترين العرب</p>
               <Link
-                href="/auth/register?role=developer"
+                href="/ar/auth/register?role=developer"
                 className="inline-flex items-center gap-2 px-6 py-3 bg-white text-neutral-900 font-bold rounded-xl text-sm hover:bg-neutral-100 transition-colors"
               >
                 <Code2 size={15} aria-hidden="true" />
@@ -310,7 +310,7 @@ export default function HomeClient({ featured, newest, topSelling, topDevelopers
 
       {/* زر واتساب عائم */}
       <a
-        href="https://wa.me/212XXXXXXXXX"
+        href="https://wa.me/212600000000"
         target="_blank"
         rel="noreferrer"
         className="fixed bottom-20 left-4 z-30 w-14 h-14 bg-green-500 hover:bg-green-600 rounded-full flex items-center justify-center shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-110"

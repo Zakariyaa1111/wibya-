@@ -17,7 +17,7 @@ export default function WalletPage() {
   const [profile, setProfile] = useState<any>(null)
   const [loading, setLoading] = useState(true)
   const [amount, setAmount] = useState('')
-  const [paypalEmail, setPaypalEmail] = useState('')
+  const [bankEmail, setBankEmail] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [showForm, setShowForm] = useState(false)
 
@@ -39,7 +39,7 @@ export default function WalletPage() {
 
       setWallet(w)
       setProfile(p)
-      setPaypalEmail(p?.paypal_email || '')
+      setBankEmail(p?.paypal_email || '')
       setWithdrawals(wds ?? [])
       setLoading(false)
     }
@@ -50,7 +50,7 @@ export default function WalletPage() {
     const amt = parseFloat(amount)
     if (!amt || amt < 10) { toast.error('الحد الأدنى للسحب $10'); return }
     if (amt > (wallet?.balance ?? 0)) { toast.error('الرصيد غير كافٍ'); return }
-    if (!paypalEmail.includes('@')) { toast.error('بريد PayPal غير صحيح'); return }
+    if (!bankEmail.includes('@')) { toast.error('بريد إلكتروني للاستلام غير صحيح'); return }
 
     setSubmitting(true)
     const supabase = createClient()
@@ -58,12 +58,12 @@ export default function WalletPage() {
     if (!user) return
 
     // تحديث paypal_email في الملف الشخصي
-    await supabase.from('profiles').update({ paypal_email: paypalEmail }).eq('id', user.id)
+    await supabase.from('profiles').update({ paypal_email: bankEmail }).eq('id', user.id)
 
     const { error } = await supabase.from('withdrawal_requests').insert({
       developer_id: user.id,
       amount: amt,
-      paypal_email: paypalEmail,
+      paypal_email: bankEmail,
       status: 'pending',
     })
 
@@ -77,7 +77,7 @@ export default function WalletPage() {
       setWithdrawals(prev => [{
         id: 'new',
         amount: amt,
-        paypal_email: paypalEmail,
+        paypal_email: bankEmail,
         status: 'pending',
         created_at: new Date().toISOString(),
       }, ...prev])
@@ -167,22 +167,22 @@ export default function WalletPage() {
 
             <div className="space-y-1.5">
               <label className="text-xs font-medium text-neutral-600 dark:text-neutral-400">
-                بريد PayPal
+                بريد إلكتروني للاستلام
               </label>
               <input
                 type="email"
-                value={paypalEmail}
-                onChange={e => setPaypalEmail(e.target.value)}
-                placeholder="your@paypal.com"
+                value={bankEmail}
+                onChange={e => setBankEmail(e.target.value)}
+                placeholder="your@email.com"
                 className="w-full px-4 py-3 bg-neutral-50 dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 rounded-xl text-sm text-neutral-900 dark:text-white outline-none focus:border-neutral-400 transition-colors"
                 dir="ltr"
-                aria-label="بريد PayPal"
+                aria-label="بريد إلكتروني للاستلام"
               />
             </div>
 
             <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-xl p-3">
               <p className="text-xs text-amber-700 dark:text-amber-300">
-                ⚠️ سيتم التحويل لـ PayPal خلال 1-3 أيام عمل بعد موافقة الإدارة.
+                ⚠️ سيتم التحويل عبر تحويل بنكي خلال 1-3 أيام عمل بعد موافقة الإدارة.
               </p>
             </div>
 
@@ -220,7 +220,7 @@ export default function WalletPage() {
                   </div>
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-medium text-neutral-900 dark:text-white">
-                      سحب إلى PayPal
+                      سحب — تحويل بنكي
                     </p>
                     <p className="text-xs text-neutral-400">
                       {new Date(w.created_at).toLocaleDateString('ar-MA')}
@@ -245,7 +245,7 @@ export default function WalletPage() {
             'مشتري يشتري منتجك → المبلغ يدخل Escrow',
             'بعد 48 ساعة بدون نزاع → يُضاف لرصيدك',
             'تطلب السحب متى تريد (حد أدنى $10)',
-            'يصل PayPal خلال 1-3 أيام عمل',
+            'يصل عبر تحويل بنكي خلال 1-3 أيام عمل',
           ].map((item, i) => (
             <div key={i} className="flex items-start gap-2">
               <span className="w-4 h-4 rounded-full bg-blue-200 dark:bg-blue-800 text-blue-700 dark:text-blue-300 text-[9px] font-bold flex items-center justify-center shrink-0 mt-0.5">
