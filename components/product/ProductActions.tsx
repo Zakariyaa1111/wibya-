@@ -53,21 +53,19 @@ export function ProductActions({ product, hasPurchased, isWishlisted, userId }: 
 
   return (
     <div
-      dir="ltr"
       style={{
         position: 'fixed',
         bottom: '64px',
-        left: 0,
-        right: 0,
+        left: '0px',
+        right: '0px',
+        width: '100%',
         zIndex: 40,
-        backgroundColor: 'rgba(255,255,255,0.95)',
-        borderTop: '1px solid #f5f5f5',
-        backdropFilter: 'blur(20px)',
         padding: '12px 16px',
+        direction: 'ltr',
       }}
-      className="dark:bg-neutral-950/95 dark:border-neutral-800"
+      className="bg-white/95 dark:bg-neutral-950/95 backdrop-blur-xl border-t border-neutral-100 dark:border-neutral-800"
     >
-      <div className="max-w-2xl mx-auto flex gap-3">
+      <div style={{maxWidth: '42rem', margin: '0 auto', display: 'flex', gap: '12px'}}>
         {/* Wishlist */}
         <button
           onClick={handleWishlist}
