@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>wibya.com — Domain For Sale</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #0a0a0f;
+      --surface: #13131a;
+      --border: rgba(255,255,255,0.07);
+      --accent: #c8f060;
+      --accent-dim: rgba(200,240,96,0.12);
+      --text: #e8e8e8;
+      --muted: #6b6b7a;
+      --white: #ffffff;
+    }
+
+    html, body {
+      height: 100%;
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'DM Sans', sans-serif;
+      font-weight: 300;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    body {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      padding: 2rem 1.5rem;
+    }
+
+    /* Ambient glow */
+    body::before {
+      content: '';
+      position: fixed;
+      top: -20%;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 600px;
+      height: 400px;
+      background: radial-gradient(ellipse, rgba(200,240,96,0.06) 0%, transparent 70%);
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    .card {
+      position: relative;
+      z-index: 1;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      padding: 3rem 3.5rem;
+      max-width: 520px;
+      width: 100%;
+      text-align: center;
+    }
+
+    .badge {
+      display: inline-block;
+      font-size: 0.7rem;
+      font-weight: 500;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--accent);
+      background: var(--accent-dim);
+      border: 1px solid rgba(200,240,96,0.2);
+      border-radius: 100px;
+      padding: 0.3rem 0.9rem;
+      margin-bottom: 1.8rem;
+    }
+
+    .domain {
+      font-family: 'DM Serif Display', serif;
+      font-size: clamp(2.8rem, 8vw, 4.2rem);
+      color: var(--white);
+      letter-spacing: -0.02em;
+      line-height: 1;
+      margin-bottom: 0.5rem;
+    }
+
+    .domain span {
+      color: var(--accent);
+    }
+
+    .tagline {
+      font-size: 0.95rem;
+      color: var(--muted);
+      margin-bottom: 2.5rem;
+      line-height: 1.6;
+    }
+
+    .divider {
+      width: 100%;
+      height: 1px;
+      background: var(--border);
+      margin: 2rem 0;
+    }
+
+    .stats {
+      display: flex;
+      justify-content: center;
+      gap: 2.5rem;
+      margin-bottom: 2rem;
+    }
+
+    .stat {
+      text-align: center;
+    }
+
+    .stat-value {
+      font-family: 'DM Serif Display', serif;
+      font-size: 1.6rem;
+      color: var(--white);
+      line-height: 1;
+      margin-bottom: 0.3rem;
+    }
+
+    .stat-label {
+      font-size: 0.72rem;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+
+    .price-row {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.6rem;
+      margin-bottom: 1.6rem;
+    }
+
+    .price {
+      font-family: 'DM Serif Display', serif;
+      font-size: 2.4rem;
+      color: var(--accent);
+      line-height: 1;
+    }
+
+    .price-note {
+      font-size: 0.8rem;
+      color: var(--muted);
+      align-self: flex-end;
+      padding-bottom: 0.3rem;
+    }
+
+    .btn {
+      display: inline-block;
+      width: 100%;
+      padding: 0.9rem 1.5rem;
+      background: var(--accent);
+      color: #0a0a0f;
+      font-family: 'DM Sans', sans-serif;
+      font-size: 0.9rem;
+      font-weight: 500;
+      letter-spacing: 0.02em;
+      text-decoration: none;
+      border-radius: 10px;
+      transition: opacity 0.2s, transform 0.15s;
+      cursor: pointer;
+      border: none;
+    }
+
+    .btn:hover {
+      opacity: 0.88;
+      transform: translateY(-1px);
+    }
+
+    .btn:active {
+      transform: translateY(0);
+    }
+
+    .footer-note {
+      margin-top: 1.4rem;
+      font-size: 0.75rem;
+      color: var(--muted);
+      line-height: 1.6;
+    }
+
+    .footer-note a {
+      color: var(--text);
+      text-decoration: underline;
+      text-underline-offset: 3px;
+    }
+
+    @media (max-width: 480px) {
+      .card {
+        padding: 2.2rem 1.8rem;
+      }
+      .stats {
+        gap: 1.5rem;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div class="badge">Domain For Sale</div>
+
+    <div class="domain">wibya<span>.com</span></div>
+    <p class="tagline">A short, brandable .com — ready to build on.</p>
+
+    <div class="divider"></div>
+
+    <div class="stats">
+      <div class="stat">
+        <div class="stat-value">7.1k</div>
+        <div class="stat-label">Unique Visitors</div>
+      </div>
+      <div class="stat">
+        <div class="stat-value">.com</div>
+        <div class="stat-label">Extension</div>
+      </div>
+      <div class="stat">
+        <div class="stat-value">5</div>
+        <div class="stat-label">Characters</div>
+      </div>
+    </div>
+
+    <div class="divider"></div>
+
+    <div class="price-row">
+      <div class="price">$1,000</div>
+      <div class="price-note">Buy Now</div>
+    </div>
+
+    <a class="btn" href="https://www.afternic.com/domain/wibya.com" target="_blank" rel="noopener">
+      Purchase on Afternic →
+    </a>
+
+    <p class="footer-note">
+      Secure transfer via Afternic / GoDaddy escrow.<br/>
+      Questions? <a href="mailto:contact@wibya.com">contact@wibya.com</a>
+    </p>
+  </div>
+</body>
+</html>
